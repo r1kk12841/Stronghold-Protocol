@@ -188,6 +188,7 @@ Do not manually edit generated game-data files. `npm run build-data` rebuilds of
 
 - [Gameplay guide](docs/PLAYING.md)
 - [Deployment guide](docs/DEPLOY.md)
+- [Android implementation plan](docs/ANDROID_PLAN.md)
 - [Architecture and design](docs/DESIGN.md)
 - [Combat simulation reference](docs/SIM.md)
 - [Match and economy engine](docs/META.md)
