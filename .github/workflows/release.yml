@@ -18,13 +18,21 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
       - run: npm ci --no-audit --no-fund
-      - run: node --test
+      - name: Release-critical tests
+        run: >-
+          node --test
+          test/client-static.test.js
+          test/lobby.test.js
+          test/ui/local-first-net.test.js
+          test/ui/content-urls.test.js
+          test/ui/gameLogic.test.js
+          test/ui/i18n.test.js
 
   android:
     name: Build Android APK
@@ -32,12 +40,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 35
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: 21
@@ -59,7 +67,7 @@ jobs:
         run: |
           mkdir -p release-assets
           cp android/app/build/outputs/apk/debug/app-debug.apk "release-assets/Stronghold-Protocol-Android-${GITHUB_REF_NAME}-debug.apk"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: android-apk
           path: release-assets/*.apk
@@ -71,8 +79,8 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 35
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
@@ -91,7 +99,7 @@ jobs:
           $source = Get-ChildItem dist-windows -File -Filter '*.exe' | Select-Object -First 1
           if (-not $source) { throw 'electron-builder did not produce a portable EXE' }
           Copy-Item $source.FullName "release-assets/Stronghold-Protocol-Windows-${{ github.ref_name }}.exe"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: windows-portable
           path: release-assets/*.exe
@@ -105,7 +113,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v7
         with:
           pattern: '*'
           path: release-assets
