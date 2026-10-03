@@ -15,6 +15,7 @@ import {
 import { toast, toastError } from '../ui/toasts.js';
 import { GuideButton } from '../ui/guide.js';
 import { LoadoutButton } from './loadout.js';
+import { PropListButton, EnemyListButton } from './compendium.js';
 import { net } from '../net.js';
 import { store, useStore, shallowEqual, emptyMatch } from '../store.js';
 import { difficultyInfo } from './lobby.js';
@@ -302,6 +303,8 @@ export function RoomScreen() {
         <div class="room-bar__status">${statusLine}</div>
       </div>
       <div class="room-bar__right">
+        <${PropListButton} size="lg" class="room-comp" />
+        <${EnemyListButton} size="lg" class="room-comp" />
         <${LoadoutButton} from="room" size="lg" class="room-loadout" />
         ${facts.isHost
           ? html`<${Tooltip} text=${facts.canStart ? null : '仍有博士未准备就绪'}>

@@ -22,6 +22,7 @@ import { Img, BondGlyph, CoinGlyph, GIcon, RichText } from './gameComponents.js'
 import { priceTone, mergeProgress, mergeTarget, shopBlockReason, chessLoadout } from './gameLogic.js';
 import { chessPortraitUrl, itemIconUrl, profIconUrl, uiUrl, skillIconUrl, skillRecordIconUrl, moduleTypeIconUrl } from './assetUrls.js';
 import { data } from '../data.js';
+import { translateText, descOf } from '../i18n.js';
 
 const cx = (...p) => p.flat().filter(Boolean).join(' ');
 
@@ -31,7 +32,7 @@ function PriceHex({ slot, free, poor = false }) {
   if (free || price === 0) return html`<span class="scard__free">FREE</span>`;
   // like the original (img_bg_price_not_enough) the price turns grey while the funds don't cover it
   return html`<${HexBadge} value=${price} tone=${poor ? 'dark' : tone} size="md" class=${cx('scard__price', poor && 'is-poor')}
-    title=${poor ? '资金不足' : tone === 'discount' ? `折扣价（原价 ${slot.basePrice}）` : tone === 'premium' ? `加价（原价 ${slot.basePrice}）` : '价格'} />`;
+    title=${poor ? translateText('资金不足') : tone === 'discount' ? translateText(`折扣价（原价 ${slot.basePrice}）`) : tone === 'premium' ? translateText(`加价（原价 ${slot.basePrice}）`) : translateText('价格')} />`;
 }
 
 /** Data lookups for shopBlockReason (full-hand purchases that complete a merge stay allowed). */
@@ -49,8 +50,8 @@ export function mergeHint(priv, chessId) {
 
 /** The armed (first-tapped) card's confirm strip: 确认购买 / 确认选择, or 无法购买 + why. */
 function ArmedTag({ reason, free }) {
-  if (reason) return html`<span class="scard__confirm is-no" role="status"><b>无法购买</b><small>${reason}</small></span>`;
-  return html`<span class="scard__confirm" role="status"><b>${free ? '确认选择' : '确认购买'}</b><small>再次点击</small></span>`;
+  if (reason) return html`<span class="scard__confirm is-no" role="status"><b>${translateText('无法购买')}</b><small>${translateText(reason)}</small></span>`;
+  return html`<span class="scard__confirm" role="status"><b>${translateText(free ? '确认选择' : '确认购买')}</b><small>${translateText('再次点击')}</small></span>`;
 }
 
 /**
@@ -71,14 +72,14 @@ export function ChessCard({ slot, idx, priv, frozen = false, reason = null, free
   const tap = () => { if (onTap) onTap(idx); else if (!disabled) onBuy(idx); else onDetail(slot.id, 'chess', hint); };
   const card = html`<button type="button" class=${cx('scard', `scard--t${tier}`, frozen && 'is-frozen', disabled && 'is-disabled', willMerge && 'is-merge', armed && 'is-armed')}
       onClick=${tap} onContextMenu=${(e) => { e.preventDefault(); onDetail(slot.id, 'chess', hint); }}
-      aria-label=${`${c?.name || '干员'}，价格 ${slot.price}${armed ? (disabled ? '，无法购买' : '，再次点击确认') : ''}`} aria-pressed=${onTap ? String(!!armed) : undefined}>
+      aria-label=${translateText(`${c?.name || '干员'}，价格 ${slot.price}${armed ? (disabled ? '，无法购买' : '，再次点击确认') : ''}`)} aria-pressed=${onTap ? String(!!armed) : undefined}>
     <span class="scard__bg" aria-hidden="true"></span>
     <span class="scard__water" aria-hidden="true">${bonds[0] ? html`<${BondGlyph} bondId=${bonds[0]} />` : null}</span>
     <${Img} src=${chessPortraitUrl(m, c)} class="scard__art" />
     <span class="scard__top">
       <${TierChip} tier=${tier} size="md" />
       <${PriceHex} slot=${slot} free=${free} poor=${reason === '资金不足'} />
-      ${prog.copies > 0 ? html`<span class="scard__pips" title=${`已拥有 ${prog.copies}/${prog.need}`}>
+      ${prog.copies > 0 ? html`<span class="scard__pips" title=${translateText(`已拥有 ${prog.copies}/${prog.need}`)}>
         ${Array.from({ length: prog.need }, (_, i) => html`<i key=${i} class=${i < prog.copies ? 'on' : ''}></i>`)}
       </span>` : null}
     </span>
@@ -90,14 +91,14 @@ export function ChessCard({ slot, idx, priv, frozen = false, reason = null, free
       </span>
       <span class="scard__class">
         <${Img} src=${profIconUrl(m, c?.profession)} class="scard__prof" />
-        <span>${c?.subProfessionName || ''}</span>
+        <span>${translateText(c?.subProfessionName || '')}</span>
       </span>
     </span>
-    ${willMerge ? html`<span class="scard__mergetag" title=${hint}>可晋升</span>` : null}
+    ${willMerge ? html`<span class="scard__mergetag" title=${translateText(hint)}>${translateText('可晋升')}</span>` : null}
     ${frozen ? html`<span class="scard__ice" aria-hidden="true"><${Icon} name="snow" /></span>` : null}
     ${armed ? html`<${ArmedTag} reason=${reason} free=${free} />` : null}
   </button>`;
-  return reason && reason !== '已售出' && !armed ? html`<${Tooltip} text=${reason} block=${true} class="scard-wrap">${card}<//>` : card;
+  return reason && reason !== '已售出' && !armed ? html`<${Tooltip} text=${translateText(reason)} block=${true} class="scard-wrap">${card}<//>` : card;
 }
 
 /** The loadout's skill (icon; name + 已调配 in the tooltip) and an elite's module type, on an operator card. */
@@ -108,7 +109,7 @@ function SkillBadge({ chess, lo }) {
   const src = custom ? skillRecordIconUrl(m, lo.skill, { empty: false }) : skillIconUrl(m, chess);
   const slot = Number.isInteger(lo.skill.index) ? `S${lo.skill.index + 1}` : null;
   const mod = lo.module && !lo.module.none ? lo.module : null;
-  const tip = `技能${slot ? ` ${slot}` : ''}：${lo.skill.name || ''}${custom ? '（已调配）' : ''}${mod ? ` · 模组：${mod.name}` : lo.module?.none ? ' · 未装备模组' : ''}`;
+  const tip = translateText(`技能${slot ? ` ${slot}` : ''}：${lo.skill.name || ''}${custom ? '（已调配）' : ''}${mod ? ` · 模组：${mod.name}` : lo.module?.none ? ' · 未装备模组' : ''}`);
   return html`<span class=${cx('scard__skill', custom && 'is-custom')} title=${tip} aria-label=${tip} data-skill=${lo.skill.skillId || ''}>
     <${Img} src=${src} fallback=${slot ? html`<span class="scard__sglyph num">${slot}</span>` : html`<${GIcon} name="bolt" />`} />
     ${mod && mod.typeName ? html`<span class="scard__mod" data-type=${mod.typeName}><${Img} src=${moduleTypeIconUrl(data.get('local'), mod.typeName)} class="scard__modicon" />${mod.typeName}</span>` : null}
@@ -127,7 +128,7 @@ export function ItemCard({ slot, idx, frozen = false, reason = null, armed = fal
   const tap = () => { if (onTap) onTap(idx); else if (!disabled) onBuy(idx); else onDetail(slot.id, 'item'); };
   const card = html`<button type="button" class=${cx('scard', 'scard--item', frozen && 'is-frozen', disabled && 'is-disabled', armed && 'is-armed')}
       onClick=${tap} onContextMenu=${(e) => { e.preventDefault(); onDetail(slot.id, 'item'); }}
-      aria-label=${`${it?.name || '装备'}，价格 ${slot.price}${armed ? (disabled ? '，无法购买' : '，再次点击确认') : ''}`}
+      aria-label=${translateText(`${it?.name || '装备'}，价格 ${slot.price}${armed ? (disabled ? '，无法购买' : '，再次点击确认') : ''}`)}
       aria-pressed=${onTap ? String(!!armed) : undefined}>
     <span class="scard__bg" aria-hidden="true"></span>
     <span class="scard__top">
@@ -137,17 +138,17 @@ export function ItemCard({ slot, idx, frozen = false, reason = null, armed = fal
     <span class="scard__itemart"><${Img} src=${itemIconUrl(m, it)} fallback=${html`<${GIcon} name="bolt" />`} /></span>
     <span class="scard__body">
       <span class="scard__name">${it?.name || slot.id}</span>
-      <span class="scard__idesc"><${RichText} text=${it?.descRaw || it?.desc || ''} /></span>
+      <span class="scard__idesc"><${RichText} text=${descOf(it)} /></span>
     </span>
     ${frozen ? html`<span class="scard__ice" aria-hidden="true"><${Icon} name="snow" /></span>` : null}
     ${armed ? html`<${ArmedTag} reason=${reason} />` : null}
   </button>`;
-  return reason && reason !== '已售出' && !armed ? html`<${Tooltip} text=${reason} block=${true} class="scard-wrap">${card}<//>` : card;
+  return reason && reason !== '已售出' && !armed ? html`<${Tooltip} text=${translateText(reason)} block=${true} class="scard-wrap">${card}<//>` : card;
 }
 
 function SoldCard({ item = false }) {
-  return html`<div class=${cx('scard', 'scard--sold', item && 'scard--item')} aria-label="已售出">
-    <span class="scard__soldtxt"><${MicroLabel}>SOLD OUT</${MicroLabel}><span>${item ? '已购买' : '已招募'}</span></span>
+  return html`<div class=${cx('scard', 'scard--sold', item && 'scard--item')} aria-label=${translateText('已售出')}>
+    <span class="scard__soldtxt"><${MicroLabel}>SOLD OUT</${MicroLabel}><span>${item ? translateText('已购买') : translateText('已招募')}</span></span>
   </div>`;
 }
 
@@ -214,20 +215,20 @@ export function useTwoTap({ editable, keys }) {
  * tier min(level+1, 6); pick 1 (g.reward idx) or put it off (稍后选择 → the normal shop + a reminder pill).
  */
 function RewardCards({ offer, priv, editable, onPick, onDetail, onLater, armed, onTap }) {
-  return html`<div class="shopbar__reward" role="group" aria-label="晋升奖励">
+  return html`<div class="shopbar__reward" role="group" aria-label=${translateText('晋升奖励')}>
     <div class="rwtag">
       <${Icon} name="crown" class="rwtag__icon" />
-      <b class="rwtag__title">晋升奖励</b>
+      <b class="rwtag__title">${translateText('晋升奖励')}</b>
       <span class="rwtag__micro">PROMOTION</span>
-      <span class="rwtag__sub">免费选择 1 名</span>
-      <button type="button" class="rwtag__later" onClick=${onLater} title="稍后选择（回合结束后消失）"><${Icon} name="minus" />稍后</button>
+      <span class="rwtag__sub">${translateText('免费选择 1 名')}</span>
+      <button type="button" class="rwtag__later" onClick=${onLater} title=${translateText('稍后选择（回合结束后消失）')}><${Icon} name="minus" />${translateText('稍后')}</button>
     </div>
     <div class="shopbar__rwcards">
       ${offer.slots.map((s, i) => (s && !s.sold
         ? html`<${ChessCard} key=${`rw${i}:${s.id}`} slot=${{ ...s, price: 0 }} idx=${i} priv=${priv} free=${true}
             armed=${armed === armKey('r', i, s)} onTap=${(idx) => onTap('r', idx, s, 'chess', shopBlockReason('reward', { priv, editable, slot: s, ...LOOKUPS }), onPick)}
             reason=${shopBlockReason('reward', { priv, editable, slot: s, ...LOOKUPS })} onBuy=${onPick} onDetail=${onDetail} />`
-        : html`<div key=${`rw${i}`} class="scard scard--sold"><span class="scard__soldtxt"><span>已选择</span></span></div>`))}
+        : html`<div key=${`rw${i}`} class="scard scard--sold"><span class="scard__soldtxt"><span>${translateText('已选择')}</span></span></div>`))}
     </div>
   </div>`;
 }
@@ -286,22 +287,22 @@ export function ShopBar({ priv, editable, collapsed, onCollapse, onBuy, onLevel,
   if (collapsed) {
     return html`<div class="shopbar-tab" ref=${barRef}>
       <div class="shopbar-tab__funds"><${CoinGlyph} /><b class="num">${funds}</b></div>
-      <button type="button" class="shopbar-tab__btn" onClick=${() => onCollapse(false)}><${Icon} name="chevronLeft" />展开商店</button>
+      <button type="button" class="shopbar-tab__btn" onClick=${() => onCollapse(false)}><${Icon} name="chevronLeft" />${translateText('展开商店')}</button>
     </div>`;
   }
 
-  return html`<section class=${cx('shopbar', frozen && 'is-frozen', !editable && 'is-locked', showReward && 'has-reward', armed && 'has-armed')} ref=${barRef} aria-label="调度中心">
+  return html`<section class=${cx('shopbar', frozen && 'is-frozen', !editable && 'is-locked', showReward && 'has-reward', armed && 'has-armed')} ref=${barRef} aria-label=${translateText('调度中心')}>
     <div class="shopbar__tools">
-      <span class="shopbar__remain">剩余可放置角色：<b class=${cx('num', remaining === 0 && 't-orange')}>${remaining}</b></span>
+      <span class="shopbar__remain">${translateText('剩余可放置角色：')}<b class=${cx('num', remaining === 0 && 't-orange')}>${remaining}</b></span>
       <button type="button" class=${cx('toolbtn', 'toolbtn--ice', frozen && 'is-on')} disabled=${!!frzReason} onClick=${onFreeze}
-        title=${frzReason || (frozen ? '解冻商店 · F' : '冻结商店（下回合保留） · F')}>
+        title=${frzReason ? translateText(frzReason) : (frozen ? translateText('解冻商店 · F') : translateText('冻结商店（下回合保留） · F'))}>
         <${Img} src=${uiUrl(data.get('assets'), frozen ? 'shopPanel/frozen_icon2' : 'shopPanel/frozen_icon')} class="toolbtn__img" fallback=${html`<${Icon} name="snow" />`} />
-        <span>${frozen ? '解冻' : '冻结'}</span><kbd>F</kbd>
+        <span>${translateText(frozen ? '解冻' : '冻结')}</span><kbd>F</kbd>
       </button>
-      <button type="button" class="toolbtn toolbtn--amber" disabled=${!!refReason} onClick=${onRefresh} title=${refReason || '刷新商店 · R'}>
+      <button type="button" class="toolbtn toolbtn--amber" disabled=${!!refReason} onClick=${onRefresh} title=${refReason ? translateText(refReason) : translateText('刷新商店 · R')}>
         <${Img} src=${uiUrl(data.get('assets'), 'shopPanel/refresh_icon')} class="toolbtn__img" fallback=${html`<${Icon} name="refresh" />`} />
-        <span>刷新</span>
-        ${free > 0 ? html`<span class="toolbtn__free">免费 ×${free}</span>` : html`<${HexBadge} value=${shop.refreshPrice ?? 1} tone=${refReason ? 'dark' : 'gold'} size="sm" />`}
+        <span>${translateText('刷新')}</span>
+        ${free > 0 ? html`<span class="toolbtn__free">${translateText(`免费 ×${free}`)}</span>` : html`<${HexBadge} value=${shop.refreshPrice ?? 1} tone=${refReason ? 'dark' : 'gold'} size="sm" />`}
         <kbd>R</kbd>
       </button>
     </div>
@@ -332,8 +333,8 @@ export function ShopBar({ priv, editable, collapsed, onCollapse, onBuy, onLevel,
           <${CoinGlyph} class="funds__coin" />
           <b class="funds__num num">${funds}</b>
         </div>
-        <span class="funds__label">目前资金</span>
-        <button type="button" class="funds__collapse" onClick=${() => onCollapse(true)}><${Icon} name="close" />收起</button>
+        <span class="funds__label">${translateText('目前资金')}</span>
+        <button type="button" class="funds__collapse" onClick=${() => onCollapse(true)}><${Icon} name="close" />${translateText('收起')}</button>
       </div>
     </div>
   </section>`;

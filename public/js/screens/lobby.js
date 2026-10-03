@@ -13,6 +13,7 @@ import { html, Button, Icon, MicroLabel, Panel, TextField, PingPill, AvatarFrame
 import { toast, toastError } from '../ui/toasts.js';
 import { GuideButton } from '../ui/guide.js';
 import { LoadoutButton } from './loadout.js';
+import { PropListButton, EnemyListButton } from './compendium.js';
 import { net, identity } from '../net.js';
 import { store, useStore, shallowEqual, loadPref, savePref } from '../store.js';
 import { getConfig, getMode, getStage, useData } from '../data.js';
@@ -267,6 +268,8 @@ export function LobbyScreen() {
       </div>
       <div class="topbar__right">
         <${GuideButton} class="lobby-guide" variant="secondary" />
+        <${PropListButton} size="sm" class="lobby-comp" />
+        <${EnemyListButton} size="sm" class="lobby-comp" />
         <${LoadoutButton} from="lobby" size="sm" class="lobby-loadout" />
         <div class="me-chip">
           <${AvatarFrame} size="sm" name=${me.name} seat=${0} self=${true} />

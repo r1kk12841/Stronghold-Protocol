@@ -1,0 +1,231 @@
+/* ==========================================================================================
+   screens/compendium.css — 道具与敌人图鉴 (Prop & Enemy Compendium viewer)
+   Full-screen overlay matching the custom operator (loadout) style with a filterable roster (left)
+   and detailed inspection panel (right).
+   ========================================================================================== */
+
+.comp-tabs {
+  display: inline-flex;
+  align-items: center;
+  gap: .04rem;
+  background: rgba(0, 0, 0, .45);
+  padding: .03rem .05rem;
+  border: 1px solid var(--line);
+  clip-path: polygon(.06rem 0, 100% 0, calc(100% - .06rem) 100%, 0 100%);
+}
+
+.comp-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: .06rem;
+  height: max(.36rem, 26px);
+  padding: 0 .16rem;
+  font: inherit;
+  font-size: max(.16rem, 12px);
+  font-weight: 700;
+  color: var(--text-lo);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  clip-path: polygon(.05rem 0, 100% 0, calc(100% - .05rem) 100%, 0 100%);
+  transition: color var(--t-fast), background var(--t-fast);
+  touch-action: manipulation;
+}
+.comp-tab:hover { color: var(--text-hi); }
+.comp-tab.is-active {
+  color: #0b0d0c;
+  background: var(--mint-400);
+  box-shadow: 0 0 10px rgba(78, 216, 175, .35);
+}
+.comp-tab .icon {
+  width: max(.18rem, 13px);
+  height: max(.18rem, 13px);
+}
+
+/* Card list */
+.comp-screen .lo-grid {
+  grid-template-columns: repeat(auto-fill, minmax(max(2.5rem, 156px), 1fr));
+  gap: .14rem;
+}
+
+.comp-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  min-width: 0;
+  padding: 0;
+  background: rgba(255, 255, 255, .02);
+  border: 1px solid var(--line);
+  color: var(--text-hi);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--t-fast), border-color var(--t-fast), transform var(--t-fast);
+  touch-action: manipulation;
+  overflow: hidden;
+}
+.comp-card:hover {
+  background: rgba(255, 255, 255, .05);
+  border-color: var(--line-3);
+  transform: translateY(-1px);
+}
+.comp-card.is-sel {
+  background: linear-gradient(180deg, rgba(78, 216, 175, .16), rgba(78, 216, 175, .03));
+  border-color: var(--mint-500);
+  box-shadow: inset 0 3px 0 var(--mint-400), 0 0 12px rgba(78, 216, 175, .15);
+}
+.comp-card:focus-visible {
+  outline: 2px solid var(--mint-300);
+  outline-offset: 2px;
+}
+
+.comp-card__art {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  border-bottom: 1px solid var(--line-2);
+  background:
+    radial-gradient(circle at 50% 45%, rgba(255, 255, 255, .08), transparent 58%),
+    rgba(0, 0, 0, .42);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+.comp-card__art img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  padding: .1rem;
+}
+.comp-card__art.is-golden {
+  border-color: var(--gold-400);
+  box-shadow: 0 0 8px rgba(246, 201, 74, .25);
+}
+.comp-card__art.is-boss {
+  border-color: var(--red-premium);
+  box-shadow: 0 0 8px rgba(255, 84, 84, .3);
+}
+.comp-card__art.is-elite {
+  border-color: var(--amber);
+}
+
+.comp-card__info {
+  min-width: 0;
+  min-height: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: .1rem;
+  padding: .12rem;
+}
+.comp-card__meta {
+  display: flex;
+  align-items: center;
+  gap: .06rem;
+  flex-wrap: wrap;
+  margin-top: auto;
+}
+.comp-card__name {
+  font-size: max(.18rem, 13px);
+  font-weight: 700;
+  line-height: 1.3;
+  min-height: 2.6em;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+@media (max-width: 1100px) {
+  .comp-screen .lo-grid { grid-template-columns: repeat(auto-fill, minmax(max(2.25rem, 142px), 1fr)); }
+}
+
+@media (max-width: 760px) {
+  .comp-screen .lo-grid { grid-template-columns: repeat(auto-fill, minmax(max(2.2rem, 136px), 1fr)); }
+}
+
+@media (max-height: 520px) {
+  .comp-screen .lo-grid { grid-template-columns: repeat(auto-fill, minmax(max(2.05rem, 132px), 1fr)); }
+  .comp-card__art { aspect-ratio: 3 / 2; }
+}
+
+/* Upgraded / Base version preview block */
+.comp-upgrade-box {
+  display: flex;
+  flex-direction: column;
+  gap: .08rem;
+  padding: .12rem;
+  background: rgba(246, 201, 74, .04);
+  border: 1px solid rgba(246, 201, 74, .25);
+  border-left: 3px solid var(--gold-400);
+  margin-top: .08rem;
+}
+.comp-upgrade-box__head {
+  display: flex;
+  align-items: center;
+  gap: .08rem;
+}
+.comp-upgrade-box__icon {
+  width: max(.36rem, 24px);
+  height: max(.36rem, 24px);
+  object-fit: contain;
+}
+.comp-upgrade-box__name {
+  font-weight: 700;
+  font-size: max(.17rem, 12px);
+  color: var(--gold-300);
+}
+.comp-upgrade-box__desc {
+  margin: 0;
+  font-size: max(.15rem, 11px);
+  color: var(--text-hi);
+  line-height: 1.4;
+}
+
+/* Faction tag chips */
+.comp-factions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .06rem;
+}
+.comp-faction {
+  display: inline-flex;
+  align-items: center;
+  gap: .04rem;
+  padding: .02rem .08rem;
+  background: rgba(255, 255, 255, .05);
+  border: 1px solid var(--line);
+  font-size: max(.13rem, 10px);
+  color: var(--text-md);
+}
+.comp-faction img {
+  width: max(.16rem, 11px);
+  height: max(.16rem, 11px);
+  object-fit: contain;
+}
+
+/* Rank tag styling */
+.comp-rank-badge {
+  display: inline-block;
+  padding: .02rem .08rem;
+  font-size: max(.12rem, 9px);
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+.comp-rank-badge--normal {
+  color: var(--text-lo);
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, .03);
+}
+.comp-rank-badge--elite {
+  color: var(--amber);
+  border: 1px solid rgba(246, 163, 41, .4);
+  background: rgba(246, 163, 41, .1);
+}
+.comp-rank-badge--boss {
+  color: var(--red-premium);
+  border: 1px solid rgba(255, 84, 84, .5);
+  background: rgba(255, 84, 84, .12);
+  box-shadow: 0 0 6px rgba(255, 84, 84, .2);
+}

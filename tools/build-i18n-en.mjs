@@ -5,24 +5,56 @@
 //   https://terra-archive.net/en/autochess
 // Cross-check source (Attributes / Alliances / Strategies / Items):
 //   https://ak-spa-database.pages.dev/?tab=Attributes
+// Official Arknights Global game data (YoStar):
+//   https://raw.githubusercontent.com/Kengxxiao/ArknightsGameData_YoStar/main/en_US/gamedata/
 //
-// Both sites publish fan translations of the CN-only Stronghold Protocol data. The generated
-// catalog is committed so the game never contacts either site at runtime.
+// Generates data/i18n-en.json with full English localization for chess operators, skills,
+// modules, traits, talents, items, garrisons, bonds, bands, choices, enemies, bosses, tokens, and stages.
 
-import { readFile, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import {
+  BOSS_ABILITIES,
+  CHOICE_EVENTS,
+  FACTIONS,
+  GARRISON_EVENT_TYPES,
+  GARRISON_FALLBACKS,
+  ITEM_FLAVORS,
+  MODULE_TALENT_FALLBACKS,
+  SP_ENEMIES,
+  STAGES,
+  TOKENS,
+} from './i18n-en-dictionaries.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const OUT = resolve(ROOT, 'data', 'i18n-en.json');
+const CACHE_DIR = resolve(ROOT, '.cache', 'gamedata_en');
 const TERRA_PAGE = 'https://terra-archive.net/en/autochess';
 const AK_SPA_PAGE = 'https://ak-spa-database.pages.dev/?tab=Attributes';
+const YOSTAR_BASE = 'https://raw.githubusercontent.com/Kengxxiao/ArknightsGameData_YoStar/main/en_US/gamedata/';
 
 const fetchText = async (url) => {
   const response = await fetch(url, { signal: AbortSignal.timeout(120_000) });
   if (!response.ok) throw new Error(`HTTP ${response.status} for ${url}`);
   return response.text();
 };
+
+async function loadCachedOrFetch(relPath) {
+  const cachePath = resolve(CACHE_DIR, relPath);
+  if (existsSync(cachePath)) {
+    try {
+      return JSON.parse(await readFile(cachePath, 'utf8'));
+    } catch {
+      // Re-download on corrupt cache
+    }
+  }
+  const text = await fetchText(new URL(relPath, YOSTAR_BASE).href);
+  await mkdir(dirname(cachePath), { recursive: true });
+  await writeFile(cachePath, text, 'utf8');
+  return JSON.parse(text);
+}
 
 function assetUrl(html, page, pattern) {
   const match = html.match(pattern);
@@ -58,22 +90,10 @@ function extractArray(source, marker) {
     if (ch === '[') depth++;
     else if (ch === ']' && --depth === 0) {
       const literal = source.slice(start, i + 1);
-      return Function(`"use strict";return (${literal})`)(); // trusted, pinned website asset
+      return Function(`"use strict";return (${literal})`)();
     }
   }
   return [];
-}
-
-function merge(base, overlay) {
-  if (!overlay || typeof overlay !== 'object') return base;
-  if (Array.isArray(overlay)) {
-    const out = Array.isArray(base) ? [...base] : [];
-    overlay.forEach((value, index) => { if (value !== undefined) out[index] = merge(out[index], value); });
-    return out;
-  }
-  const out = base && typeof base === 'object' && !Array.isArray(base) ? { ...base } : {};
-  for (const [key, value] of Object.entries(overlay)) out[key] = merge(out[key], value);
-  return out;
 }
 
 function indexBy(list, key = 'id') {
@@ -87,8 +107,9 @@ async function loadJson(name) {
 function translateNestedById(base, translations) {
   if (Array.isArray(base)) return base.map((value) => translateNestedById(value, translations));
   if (!base || typeof base !== 'object') return undefined;
-  const direct = typeof base.id === 'string' ? translations.get(base.id) : null;
-  const out = direct ? { name: direct.n, desc: stripMarkup(direct.d) } : {};
+  const lookupKey = typeof base.effectId === 'string' ? base.effectId : (typeof base.id === 'string' ? base.id : null);
+  const direct = lookupKey ? translations.get(lookupKey) : null;
+  const out = direct ? { name: direct.n || direct.name, desc: stripMarkup(direct.d || direct.desc) } : {};
   for (const [key, value] of Object.entries(base)) {
     const nested = translateNestedById(value, translations);
     if (hasOverlay(nested)) out[key] = nested;
@@ -115,11 +136,48 @@ async function main() {
   const akSource = await fetchText(akChunkUrl);
   const akAttributes = extractArray(akSource, 'var P=[');
 
-  const [config, chess, bonds, garrisons, items, bands, choices, enemies, bosses] = await Promise.all(
-    ['config', 'chess', 'bonds', 'garrisons', 'items', 'bands', 'choices', 'enemies', 'bosses'].map(loadJson),
+  const [yostarHandbook, yostarCharTable, yostarBattleEquip] = await Promise.all([
+    loadCachedOrFetch('excel/enemy_handbook_table.json'),
+    loadCachedOrFetch('excel/character_table.json'),
+    loadCachedOrFetch('excel/battle_equip_table.json'),
+  ]);
+  const yostarEnemies = yostarHandbook.enemyData || {};
+
+  function getModuleTalentChanges(uniEquipId) {
+    if (!uniEquipId) return null;
+    const be = yostarBattleEquip?.[uniEquipId];
+    if (be?.phases) {
+      for (const ph of be.phases.slice().reverse()) {
+        for (const part of ph.parts || []) {
+          const cand = part.addOrOverrideTalentDataBundle?.candidates?.[0];
+          if (cand && (cand.upgradeDescription || cand.name)) {
+            const desc = stripMarkup(cand.upgradeDescription || cand.description);
+            return [{
+              talentIndex: cand.talentIndex ?? 0,
+              name: cand.name,
+              desc,
+              descRaw: desc,
+            }];
+          }
+        }
+      }
+    }
+    const fallback = MODULE_TALENT_FALLBACKS[uniEquipId];
+    if (fallback) {
+      return fallback.map((t) => ({
+        ...t,
+        descRaw: t.descRaw || t.desc,
+      }));
+    }
+    return null;
+  }
+
+  const [config, chess, bonds, garrisons, items, bands, choices, enemies, bosses, tokens, stages] = await Promise.all(
+    ['config', 'chess', 'bonds', 'garrisons', 'items', 'bands', 'choices', 'enemies', 'bosses', 'tokens', 'stages'].map(loadJson),
   );
   const files = {};
 
+  // 1. Config / Modes
   const modeById = indexBy(terra.modes);
   files.config = {
     seasonName: terra.name,
@@ -129,31 +187,93 @@ async function main() {
     })),
   };
 
+  // 2. Bonds (Alliances)
   const terraBond = indexBy(terra.bonds);
   files.bonds = Object.fromEntries(Object.keys(bonds).flatMap((id) => {
     const tr = terraBond.get(id);
     if (!tr) return [];
     const desc = tr.steps.map((step) => [step.c, step.t].filter(Boolean).map(stripMarkup).join(': ')).join('\n');
-    return [[id, { name: tr.n, desc, effectName: tr.n, effectDesc: desc }]];
+    return [[id, { name: tr.n, desc, descRaw: desc, effectName: tr.n, effectDesc: desc, effectDescRaw: desc }]];
   }));
 
-  const terraChess = indexBy(terra.chess);
+  // 3. Chess (Operators, Skills, Modules, Traits, Talents)
+  const terraChessById = indexBy(terra.chess);
+  const terraChessByOp = indexBy(terra.chess, 'op');
+  const terraChessByName = new Map((terra.chess || []).map((c) => [c.n?.toLowerCase(), c]));
+
   files.chess = {};
   for (const [id, record] of Object.entries(chess)) {
-    const base = terraChess.get(record.baseId || id);
+    if (record.isDiy) {
+      files.chess[id] = { name: 'Free pick slot' };
+      continue;
+    }
+    const base = terraChessById.get(record.baseId || id)
+      || terraChessByOp.get(record.charId)
+      || terraChessByName.get(record.appellation?.toLowerCase());
     if (!base) continue;
+
     const golden = !!record.isGolden;
-    const skills = (record.skills || []).map((skill) => {
-      const tr = (base.sks || []).find((entry) => entry.i === Number(skill.index) + 1);
-      return tr ? { name: tr.n, desc: stripMarkup(golden && tr.dG ? tr.dG : tr.d) } : undefined;
+    const skills = (record.skills || []).map((skill, sIdx) => {
+      const tr = (base.sks || []).find((entry) => entry.i === Number(skill.index) + 1)
+        || (base.sks || []).find((entry) => entry.ic && skill.iconId && entry.ic.includes(skill.iconId))
+        || (base.sks || [])[sIdx];
+      const desc = stripMarkup(golden && tr?.dG ? tr.dG : tr?.d);
+      return tr ? { name: tr.n, desc, descRaw: desc } : undefined;
     });
     const selected = Number.isInteger(record.skill?.index) ? skills[record.skill.index] : undefined;
+
+    const yoChar = yostarCharTable[record.charId];
+    const traitDesc = yoChar?.description ? stripMarkup(yoChar.description) : undefined;
+
     const modules = (record.modules || []).map((module) => {
       const type = String(module.typeName || module.type || '').toLowerCase();
       const tr = (base.mods || []).find((entry) => String(entry.i || '').toLowerCase() === type) || (base.mods || [])[0];
-      return tr ? { name: tr.n, desc: stripMarkup(tr.d) } : undefined;
+      const desc = stripMarkup(tr?.d);
+      const talentChanges = getModuleTalentChanges(module.uniEquipId);
+      return tr ? {
+        name: tr.n,
+        desc,
+        descRaw: desc,
+        traitOverride: {
+          desc: traitDesc || desc,
+          descRaw: traitDesc || desc,
+          moduleDesc: desc,
+          moduleDescRaw: desc,
+        },
+        ...(talentChanges ? { talentChanges } : {}),
+      } : undefined;
     });
-    const moduleTr = modules.find(Boolean) || ((base.mods || [])[0] ? { name: base.mods[0].n, desc: stripMarkup(base.mods[0].d) } : undefined);
+    const moduleTr = modules.find(Boolean) || ((base.mods || [])[0] ? {
+      name: base.mods[0].n,
+      desc: stripMarkup(base.mods[0].d),
+      descRaw: stripMarkup(base.mods[0].d),
+      traitOverride: {
+        desc: traitDesc || stripMarkup(base.mods[0].d),
+        descRaw: traitDesc || stripMarkup(base.mods[0].d),
+        moduleDesc: stripMarkup(base.mods[0].d),
+        moduleDescRaw: stripMarkup(base.mods[0].d),
+      },
+      ...(record.module?.id ? { talentChanges: getModuleTalentChanges(record.module.id) || undefined } : {}),
+    } : undefined);
+
+    const talents = (record.talents || []).map((t, tIdx) => {
+      const yoTalent = yoChar?.talents?.[tIdx]?.candidates?.[golden ? 1 : 0] || yoChar?.talents?.[tIdx]?.candidates?.[0];
+      const desc = stripMarkup(yoTalent?.description);
+      return yoTalent ? { name: yoTalent.name, desc, descRaw: desc } : undefined;
+    });
+    const talentsBase = golden ? (record.talentsBase || []).map((t, tIdx) => {
+      const yoTalent = yoChar?.talents?.[tIdx]?.candidates?.[0];
+      const desc = stripMarkup(yoTalent?.description);
+      return yoTalent ? { name: yoTalent.name, desc, descRaw: desc } : undefined;
+    }) : undefined;
+
+    const modDesc = moduleTr?.desc;
+    const trait = {
+      ...(traitDesc ? { desc: traitDesc, descRaw: traitDesc } : {}),
+      ...(golden && modDesc ? { moduleDesc: modDesc, moduleDescRaw: modDesc } : {}),
+    };
+    const traitBase = traitDesc ? { desc: traitDesc, descRaw: traitDesc } : undefined;
+
     files.chess[id] = {
       name: base.n,
       profession: base.job,
@@ -162,16 +282,34 @@ async function main() {
       ...(selected ? { skill: selected } : {}),
       ...(modules.some(Boolean) ? { modules } : {}),
       ...(moduleTr ? { module: moduleTr } : {}),
+      ...(Object.keys(trait).length ? { trait } : {}),
+      ...(traitBase ? { traitBase } : {}),
+      ...(talents.some(Boolean) ? { talents } : {}),
+      ...(talentsBase && talentsBase.some(Boolean) ? { talentsBase } : {}),
     };
   }
 
-  // Terra Archive keys every Attribute by the same stable garrison id as the game data. AK SPA's
-  // independently translated operator Attribute list is used to cross-check coverage and terminology.
+  // 4. Garrisons (Operator Attributes / 特质)
   files.garrisons = {};
-  for (const id of Object.keys(garrisons)) {
+  for (const [id, record] of Object.entries(garrisons)) {
     const tr = terra.gar?.[id];
-    if (tr?.d) files.garrisons[id] = { desc: stripMarkup(tr.d) };
+    let desc = tr?.d ? stripMarkup(tr.d) : null;
+    let eventTypeDesc = GARRISON_EVENT_TYPES[record.eventTypeDesc] || null;
+
+    const fallback = GARRISON_FALLBACKS[id];
+    if (fallback) {
+      if (!desc) desc = fallback.desc;
+      if (!eventTypeDesc) eventTypeDesc = fallback.eventTypeDesc;
+    }
+
+    if (desc || eventTypeDesc) {
+      files.garrisons[id] = {
+        ...(desc ? { desc, descRaw: desc } : {}),
+        ...(eventTypeDesc ? { eventTypeDesc } : {}),
+      };
+    }
   }
+
   const akByName = new Map(akAttributes.filter(Boolean).map((entry) => [entry.name, entry]));
   let akCrossChecks = 0;
   for (const record of Object.values(chess)) {
@@ -180,45 +318,110 @@ async function main() {
     if (!ak) continue;
     akCrossChecks++;
     for (const id of record.garrisonIds || []) {
-      if (!files.garrisons[id]?.desc) files.garrisons[id] = { desc: stripMarkup(ak.attribute) };
+      if (!files.garrisons[id]?.desc) {
+        const desc = stripMarkup(ak.attribute);
+        files.garrisons[id] = {
+          ...files.garrisons[id],
+          desc,
+          descRaw: desc,
+        };
+      }
     }
   }
 
+  // 5. Items (Equipment & Items)
   const terraEquip = indexBy(terra.equips);
   files.items = {};
   for (const [id, record] of Object.entries(items)) {
     const base = terraEquip.get(record.baseId || id);
     if (!base) continue;
     const desc = stripMarkup(record.isGolden && base.dG ? base.dG : base.d);
-    files.items[id] = { name: base.n, effectName: base.n, desc };
+    const flavor = ITEM_FLAVORS[record.name] || null;
+    files.items[id] = {
+      name: base.n,
+      effectName: base.n,
+      desc,
+      descRaw: desc,
+      ...(flavor ? { flavor } : {}),
+    };
   }
 
+  // 6. Bands (Strategies)
   const terraBand = indexBy(terra.bands);
   files.bands = Object.fromEntries(Object.keys(bands).flatMap((id) => {
     const tr = terraBand.get(id);
-    return tr ? [[id, { name: tr.by || bands[id].name, effectName: tr.n, desc: stripMarkup(tr.d), unlockDesc: stripMarkup(tr.un) || null }]] : [];
+    const desc = tr?.d ? stripMarkup(tr.d) : '';
+    return tr ? [[id, { name: tr.by || bands[id].name, effectName: tr.n, desc, descRaw: desc, unlockDesc: stripMarkup(tr.un) || null }]] : [];
   }));
 
-  const eventTranslations = new Map([...terra.buffs, ...terra.hunts].map((entry) => [entry.id, entry]));
-  files.choices = translateNestedById(choices, eventTranslations);
+  // 7. Choices (Events, Hunts & Tactical Buffs)
+  const eventTranslations = new Map([
+    ...(terra.buffs || []).map((entry) => [entry.id, entry]),
+    ...(terra.hunts || []).map((entry) => [entry.id, entry]),
+  ]);
+  files.choices = translateNestedById(choices, eventTranslations) || {};
+  if (!files.choices.events) files.choices.events = {};
+  for (const [id, ev] of Object.entries(choices.events || {})) {
+    const match = CHOICE_EVENTS[ev.name];
+    if (match) files.choices.events[id] = { name: match.name, desc: match.desc, descRaw: match.desc };
+  }
 
+  // 8. Enemies
   const enemyNames = terra.enemyNames && typeof terra.enemyNames === 'object' ? terra.enemyNames : {};
   const enemyById = indexBy(terra.enemies);
-  files.enemies = Object.fromEntries(Object.keys(enemies).flatMap((id) => {
-    const name = enemyNames[id] || enemyById.get(id)?.n;
-    return name ? [[id, { name }]] : [];
-  }));
+  files.enemies = {};
+  for (const [id, record] of Object.entries(enemies)) {
+    const sp = SP_ENEMIES[id];
+    const yo = yostarEnemies[id] || yostarEnemies[id.replace(/_2$/, '')];
+    const terraEntry = enemyById.get(id);
 
+    const name = sp?.name || yo?.name || enemyNames[id] || terraEntry?.n || record.name;
+    const desc = sp?.desc || (yo?.description ? stripMarkup(yo.description) : null) || (record.desc ? stripMarkup(record.desc) : null);
+    const abilities = sp?.abilities
+      || (yo?.abilityList && yo.abilityList.length > 0 ? yo.abilityList.map((a) => stripMarkup(a.text)) : null);
+
+    files.enemies[id] = {
+      name,
+      ...(desc ? { desc, descRaw: desc } : {}),
+      ...(abilities && abilities.length ? { abilities } : {}),
+    };
+  }
+
+  // 9. Bosses
   const bossById = indexBy(terra.bosses);
   files.bosses = Object.fromEntries(Object.keys(bosses).flatMap((id) => {
     const tr = bossById.get(id);
-    return tr ? [[id, { name: tr.n }]] : [];
+    const name = tr?.n || bosses[id].name;
+    const desc = tr?.d ? stripMarkup(tr.d) : null;
+    const abilities = BOSS_ABILITIES[id] || null;
+    return [[id, {
+      name,
+      ...(desc ? { desc, descRaw: desc } : {}),
+      ...(abilities ? { abilities } : {}),
+    }]];
   }));
+
+  // 10. Tokens
+  files.tokens = Object.fromEntries(Object.entries(TOKENS).map(([id, t]) => [id, { ...t, descRaw: t.desc }]));
+
+  // 11. Stages
+  files.stages = { ...STAGES };
+
+  // 12. Factions (Special Enemy Types)
+  files.factions = {
+    types: Object.fromEntries(Object.entries(FACTIONS).map(([type, f]) => [type, { ...f, descRaw: f.desc }])),
+  };
 
   const catalog = {
     locale: 'en',
     sources: [TERRA_PAGE, AK_SPA_PAGE],
-    sourceAssets: [terraChunkUrl, akChunkUrl],
+    sourceAssets: [
+      terraChunkUrl,
+      akChunkUrl,
+      new URL('excel/enemy_handbook_table.json', YOSTAR_BASE).href,
+      new URL('excel/character_table.json', YOSTAR_BASE).href,
+      new URL('excel/battle_equip_table.json', YOSTAR_BASE).href,
+    ],
     coverage: {
       modes: Object.keys(files.config.modes).length,
       bonds: Object.keys(files.bonds).length,
@@ -228,10 +431,14 @@ async function main() {
       bands: Object.keys(files.bands).length,
       enemies: Object.keys(files.enemies).length,
       bosses: Object.keys(files.bosses).length,
+      tokens: Object.keys(files.tokens).length,
+      stages: Object.keys(files.stages).length,
+      factions: Object.keys(files.factions.types).length,
       akAttributeCrossChecks: akCrossChecks,
     },
     files,
   };
+
   await writeFile(OUT, `${JSON.stringify(catalog)}\n`);
   console.log(`wrote ${OUT}`);
   console.log(catalog.coverage);

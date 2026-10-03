@@ -156,7 +156,7 @@ test('per-match disabled bonds: 3 core + 4 add-on (NORMAL+), FUNNY static + 0 + 
   }
   // FUNNY: the static list alone removes many operators
   const f = drawDisabledBonds(new GameData(DATA, 'mode_multi_funny'), createRng(1));
-  assert.equal(f.staticOff.length, 10);
+  assert.equal(f.staticOff.length, DATA.config.modes.mode_multi_funny.inactiveBondIds.length);
   assert.ok(f.banned.length >= 20);
 });
 

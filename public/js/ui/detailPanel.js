@@ -27,6 +27,7 @@ import { data } from '../data.js';
 import { attackRangeGrid } from '../../../shared/loadoutRecord.js';
 import { SKILL_SUMMON_START_DEPLOY } from '../../../shared/constants.js';
 import { moduleBadge } from './loadoutModel.js';
+import { descOf, textOf, isEnglish, translateText } from '../i18n.js';
 
 const cx = (...p) => p.flat().filter(Boolean).join(' ');
 
@@ -123,7 +124,7 @@ function ItemRow({ itemId }) {
   const it = data.lookup('items', itemId);
   return html`<div class="ditem">
     <${UnitThumb} kind="item" id=${itemId} size="sm" />
-    <div class="ditem__text"><b>${it?.name || itemId}</b><${RichText} text=${it?.descRaw || it?.desc || ''} class="ditem__desc" /></div>
+    <div class="ditem__text"><b>${it?.name || itemId}</b><${RichText} text=${descOf(it)} class="ditem__desc" /></div>
   </div>`;
 }
 
@@ -135,7 +136,7 @@ export function BondChips({ bondIds, bonds = [], onBond = null }) {
   const ids = Array.isArray(bondIds) ? bondIds.filter((b) => typeof b === 'string') : [];
   if (!ids.length) return null;
   const mine = new Map((Array.isArray(bonds) ? bonds : []).filter((b) => b && typeof b.bondId === 'string').map((b) => [b.bondId, b]));
-  return html`<div class="dbonds dbonds--top" role="list" aria-label="所属盟约">
+  return html`<div class="dbonds dbonds--top" role="list" aria-label=${translateText('所属盟约')}>
     ${ids.map((id) => {
       const rec = data.lookup('bonds', id);
       const e = mine.get(id) || null;
@@ -145,7 +146,9 @@ export function BondChips({ bondIds, bonds = [], onBond = null }) {
       const active = e ? !!e.active : tier > 0;
       const next = nextThreshold(count, th);
       const cap = next ?? th[th.length - 1] ?? null;
-      const label = `${rec?.name || id}：在场 ${count}${cap != null ? `/${cap}` : ''}${active ? `，已激活 ${tier} 阶` : '，未激活'}`;
+      const label = isEnglish()
+        ? `${rec?.name || id}: In Play ${count}${cap != null ? `/${cap}` : ''}${active ? `, Active Tier ${tier}` : ', Inactive'}`
+        : `${rec?.name || id}：在场 ${count}${cap != null ? `/${cap}` : ''}${active ? `，已激活 ${tier} 阶` : '，未激活'}`;
       const body = html`
         <${BondGlyph} bondId=${id} class="dbond__icon" />
         <span class="dbond__name">${rec?.name || id}</span>
@@ -165,6 +168,11 @@ export function BondChips({ bondIds, bonds = [], onBond = null }) {
  */
 function traitText(c, golden, lo) {
   const t = (lo?.record || c).trait || {};
+  if (isEnglish()) {
+    const base = t.desc || t.descRaw || '';
+    if (!golden || lo?.record !== c) return base;
+    return t.moduleDesc || t.moduleDescRaw || base;
+  }
   const base = t.descRaw || t.desc || '';
   if (!golden || lo?.record !== c) return base;
   return t.moduleDescRaw || base;
@@ -200,7 +208,7 @@ function GarrisonBlock({ garrison, m }) {
         ${garrison.eventTypeDesc || ''}
       </span>
     </div>
-    <${RichText} as="p" text=${garrison.descRaw || garrison.desc} class="dgarrison__text" />
+    <${RichText} as="p" text=${descOf(garrison)} class="dgarrison__text" />
   </section>`;
 }
 
@@ -284,7 +292,7 @@ export function ChessDetail({ chess, piece, unit, snapHp, editable, onSell, bond
           </div>
         </div>
       </div>
-      <${RichText} as="p" text=${sk.descRaw || sk.desc} class="dtext" />
+      <${RichText} as="p" text=${descOf(sk)} class="dtext" />
     <//>` : null;
   blocks.module = golden && lo?.module ? html`<${Section} key="module" title="模组" micro="MODULE" class="dsec--module">
       <div class=${cx('dmodule', lo.module.none && 'is-none')} data-module=${lo.module.id}>
@@ -299,14 +307,14 @@ export function ChessDetail({ chess, piece, unit, snapHp, editable, onSell, bond
       ${items.length ? items.map((it) => html`<${ItemRow} key=${it.uid} itemId=${it.id} />`) : html`<p class="t-dim dempty">拖拽装备至该干员以配发（最多 2 件）</p>`}
     <//>` : null;
   blocks.talents = Array.isArray(fr.talents) && fr.talents.some((t) => t && t.name && !t.hidden) ? html`<${Section} key="talents" title="天赋" micro="TALENT" class="dsec--talent">
-      ${fr.talents.filter((t) => t && t.name && !t.hidden).map((t, i) => html`<div key=${i} class="dtalent"><b>${t.name}</b><${RichText} text=${t.descRaw || t.desc} class="dtext" /></div>`)}
+      ${fr.talents.filter((t) => t && t.name && !t.hidden).map((t, i) => html`<div key=${i} class="dtalent"><b>${t.name}</b><${RichText} text=${descOf(t)} class="dtext" /></div>`)}
     <//>` : null;
   blocks.actions = piece && editable && piece.kind !== 'item' ? html`<div key="actions" class="dactions">
       <${Button} variant="amber" icon="close" class="dpanel__sell" onClick=${() => onSell(piece, c)}>出售<span class="dsell num">+${sell}</span><//>
     </div>` : null;
   const out = CHESS_SECTIONS.map((k) => blocks[k]).filter(Boolean);
   // a merge-completing shop / reward card: where the elite goes (shopBar mergeHint), right under the header
-  if (hint) out.splice(1, 0, html`<p key="merge" class="dhint dhint--merge"><${Icon} name="info" />可晋升：${hint}</p>`);
+  if (hint) out.splice(1, 0, html`<p key="merge" class="dhint dhint--merge"><${Icon} name="info" />${isEnglish() ? 'Promotable: ' : '可晋升：'}${hint}</p>`);
   return out;
 }
 
@@ -326,11 +334,11 @@ export function ItemDetail({ item, piece, editable, onDestroy }) {
         ${item.flavor ? html`<span class="dhead__flavor">${item.flavor}</span>` : null}
       </div>
     </div>
-    <${Section} title="效果" micro="EFFECT"><${RichText} as="p" text=${item.descRaw || item.desc} class="dtext" /><//>
+    <${Section} title="效果" micro="EFFECT"><${RichText} as="p" text=${descOf(item)} class="dtext" /><//>
     ${item.itemType === 'MAGIC'
       ? html`<p class="dhint"><${Icon} name="info" />将其拖拽至战场上的格子使用</p>`
-      : html`<p class="dhint"><${Icon} name="info" />拖拽至干员身上进行配发（每名干员最多 2 件，配发后无法取下）${item.mergeable ? '；2 件相同装备自动合成进阶装备' : ''}</p>`}
-    ${item.shopExcluded ? html`<p class="dhint dhint--source"><${Icon} name="info" />调度中心不出售 · 获取途径：${item.shopExcludedBy || '效果获得'}</p>` : null}
+      : html`<p class="dhint"><${Icon} name="info" />${isEnglish() ? 'Drag to an Operator to equip (max 2, cannot remove)' : '拖拽至干员身上进行配发（每名干员最多 2 件，配发后无法取下）'}${item.mergeable ? (isEnglish() ? '; 2 identical items auto-combine into upgraded item' : '；2 件相同装备自动合成进阶装备') : ''}</p>`}
+    ${item.shopExcluded ? html`<p class="dhint dhint--source"><${Icon} name="info" />${isEnglish() ? 'Not sold in Dispatch Center · Source: ' : '调度中心不出售 · 获取途径：'}${item.shopExcludedBy || (isEnglish() ? 'On Obtain' : '效果获得')}</p>` : null}
     ${piece && editable ? html`<div class="dactions"><${Button} variant="danger" onClick=${() => onDestroy(piece, item)}>销毁道具<//></div>` : null}`;
 }
 
@@ -339,7 +347,10 @@ function EnemyDetail({ enemy, snapHp, count, live = null }) {
   const s = enemy.stats || {};
   const types = Array.isArray(enemy.acTypes) ? enemy.acTypes : enemy.acType ? [enemy.acType] : [];
   const factions = data.get('factions')?.types || {};
-  const imm = Object.entries(s.immunities || {}).filter(([, v]) => v).map(([k]) => ({ stun: '晕眩', silence: '沉默', sleep: '沉睡', frozen: '冻结', levitate: '浮空' }[k] || k));
+  const imm = Object.entries(s.immunities || {}).filter(([, v]) => v).map(([k]) => {
+    if (isEnglish()) return { stun: 'Stun', silence: 'Silence', sleep: 'Sleep', frozen: 'Freeze', levitate: 'Levitate' }[k] || k;
+    return { stun: '晕眩', silence: '沉默', sleep: '沉睡', frozen: '冻结', levitate: '浮空' }[k] || k;
+  });
   const interval = attackInterval(s.bat, s.aspd);
   const hp = hpOf(live, snapHp);
   // a battle enemy: its live stats against its spawned ones (the round's multipliers included — unitStatsEntry base)
@@ -375,10 +386,10 @@ function EnemyDetail({ enemy, snapHp, count, live = null }) {
       <${Stat} k="攻击范围" v=${s.rangeRadius > 0 ? s.rangeRadius : '近战'} />
       <${Stat} k="目标价值" v=${s.lpr ?? 1} />
     </div>
-    ${imm.length ? html`<p class="dhint"><${Icon} name="shield" />免疫：${imm.join('、')}</p>` : null}
+    ${imm.length ? html`<p class="dhint"><${Icon} name="shield" />${isEnglish() ? 'Immune: ' : '免疫：'}${imm.join(isEnglish() ? ', ' : '、')}</p>` : null}
     ${Array.isArray(enemy.abilities) && enemy.abilities.length ? html`<${Section} title="能力" micro="ABILITIES">
-      <ul class="dabil">${enemy.abilities.map((a, i) => html`<li key=${i}><${RichText} text=${typeof a === 'string' ? a : a.textRaw || a.text} /></li>`)}</ul>
-    <//>` : enemy.descRaw || enemy.desc ? html`<${Section} title="说明"><${RichText} as="p" text=${enemy.descRaw || enemy.desc} class="dtext" /><//>` : null}`;
+      <ul class="dabil">${enemy.abilities.map((a, i) => html`<li key=${i}><${RichText} text=${typeof a === 'string' ? a : textOf(a)} /></li>`)}</ul>
+    <//>` : descOf(enemy) ? html`<${Section} title="说明"><${RichText} as="p" text=${descOf(enemy)} class="dtext" /><//>` : null}`;
 }
 
 /**
@@ -449,9 +460,9 @@ export function TokenDetail({ token, piece, ownerId = null, snapHp = null, live 
       <${Stat} k="防御" ...${st.def} /><${Stat} k="阻挡数" ...${st.blockCnt} />
     </div>
     ${hint ? html`<p class="dhint"><${Icon} name="info" />${hint}</p>` : null}
-    ${token.descRaw || token.desc ? html`<${Section} title="说明"><${RichText} as="p" text=${token.descRaw || token.desc} class="dtext" /><//>` : null}
-    ${skill ? html`<${Section} title="技能"><p class="dtext"><b>${skill.name}</b> ${skill.desc}</p><//>` : null}
-    ${talents.length ? html`<${Section} title="天赋">${talents.map((t, i) => html`<p class="dtext" key=${i}><b>${t.name}</b> ${t.desc}</p>`)}<//>` : null}`;
+    ${descOf(token) ? html`<${Section} title="说明"><${RichText} as="p" text=${descOf(token)} class="dtext" /><//>` : null}
+    ${skill ? html`<${Section} title="技能"><p class="dtext"><b>${skill.name}</b> ${skill.desc || skill.descRaw || ''}</p><//>` : null}
+    ${talents.length ? html`<${Section} title="天赋">${talents.map((t, i) => html`<p class="dtext" key=${i}><b>${t.name}</b> ${t.desc || t.descRaw || ''}</p>`)}<//>` : null}`;
 }
 
 /**

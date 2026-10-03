@@ -8,6 +8,7 @@ import { html, Button, Icon, MicroLabel, BondDisc, Tooltip } from '../ui/compone
 import { useGameData, Img, UnitThumb, RichText } from '../ui/gameComponents.js';
 import { StepHeader, ExitModal } from '../ui/matchChrome.js';
 import { LoadoutButton } from './loadout.js';
+import { PropListButton, EnemyListButton } from './compendium.js';
 import { actions } from '../ui/gameActions.js';
 import { factionTypes, bannedPerBond, sortedPlayers, phaseTotalSeconds, disabledBondSets, briefingBondTip } from '../ui/gameLogic.js';
 import { bondIconUrl, enemyIconUrl, factionIconUrl } from '../ui/assetUrls.js';
@@ -123,6 +124,8 @@ export function BriefingScreen() {
       </section>
     </main>
     <footer class="brief__foot">
+      <${PropListButton} size="lg" class="brief-comp" />
+      <${EnemyListButton} size="lg" class="brief-comp" />
       <${LoadoutButton} from="briefing" size="lg" class="brief-loadout" />
       <div class="brief-ready">
         <span class="brief-ready__txt">已就绪 <b class="num">${readyN}</b><span class="num">/${players.length}</span></span>

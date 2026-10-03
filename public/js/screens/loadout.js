@@ -24,6 +24,7 @@ import {
   changedCount, skillLabel, moduleBadge, attrRows, skillTags,
 } from '../ui/loadoutModel.js';
 import { loadoutStore, openLoadout, closeLoadout, setEntries } from '../ui/loadoutSync.js';
+import { descOf, isEnglish } from '../i18n.js';
 
 export { openLoadout, closeLoadout };
 
@@ -140,7 +141,7 @@ function SkillOption({ m, opt, on, level, onPick }) {
         ${tags.duration ? html`<span class="lo-tag">持续 <b class="num">${tags.duration}</b></span>` : null}
         ${tags.charges ? html`<span class="lo-tag">充能 <b class="num">${tags.charges}</b></span>` : null}
       </span>
-      <${RichText} as="span" class="lo-skill__desc" text=${rec?.descRaw || rec?.desc || ''} />
+      <${RichText} as="span" class="lo-skill__desc" text=${descOf(rec)} />
     </span>
   </button>`;
 }
@@ -152,12 +153,12 @@ function ModuleInfo({ m, golden, opt }) {
     const traitBase = golden.traitBase || null;
     return html`<div class="lo-minfo lo-minfo--none">
       <p class="lo-minfo__lead">不装备模组：精锐干员以基础属性、特性与天赋作战。</p>
-      ${traitBase?.desc ? html`<div class="lo-minfo__row"><span class="lo-minfo__k">特性</span><${RichText} class="lo-minfo__v" text=${traitBase.descRaw || traitBase.desc} /></div>` : null}
+      ${traitBase?.desc ? html`<div class="lo-minfo__row"><span class="lo-minfo__k">特性</span><${RichText} class="lo-minfo__v" text=${descOf(traitBase)} /></div>` : null}
     </div>`;
   }
   const rows = attrRows(rec.attr);
   const trait = rec.traitOverride;
-  const traitText = trait ? (trait.moduleDescRaw || trait.moduleDesc || trait.descRaw || trait.desc) : null;
+  const traitText = trait ? (isEnglish() ? (trait.moduleDesc || trait.moduleDescRaw || trait.desc || trait.descRaw) : (trait.moduleDescRaw || trait.moduleDesc || trait.descRaw || trait.desc)) : null;
   const talents = (Array.isArray(rec.talentChanges) ? rec.talentChanges : []).filter((t) => t && (t.name || t.desc) && !t.hidden);
   return html`<div class="lo-minfo">
     <div class="lo-minfo__title"><${Img} src=${moduleIconOf(m, rec)} class="lo-minfo__icon" /><span class="lo-minfo__type num">${rec.typeName || ''}</span><b>${rec.name || rec.uniEquipId}</b>
@@ -168,7 +169,7 @@ function ModuleInfo({ m, golden, opt }) {
     </div>
     ${traitText ? html`<div class="lo-minfo__row"><span class="lo-minfo__k">特性</span><${RichText} class="lo-minfo__v" text=${traitText} /></div>` : null}
     ${talents.map((t, i) => html`<div key=${i} class="lo-minfo__row"><span class="lo-minfo__k">天赋</span>
-      <span class="lo-minfo__v">${t.name ? html`<b class="lo-minfo__tname">${t.name}</b>` : null}<${RichText} text=${t.descRaw || t.desc || ''} /></span></div>`)}
+      <span class="lo-minfo__v">${t.name ? html`<b class="lo-minfo__tname">${t.name}</b>` : null}<${RichText} text=${descOf(t)} /></span></div>`)}
   </div>`;
 }
 

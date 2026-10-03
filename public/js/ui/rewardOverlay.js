@@ -4,6 +4,7 @@
 // (picked, or the round ended).
 
 import { html, Icon, TierChip } from './components.js';
+import { translateText } from '../i18n.js';
 
 /**
  * @param {{ priv:any, minimized:boolean, onMinimize:(m:boolean)=>void }} props
@@ -12,6 +13,6 @@ export function RewardOverlay({ priv, minimized, onMinimize }) {
   const offer = priv?.shop?.rewardOffer;
   if (!offer || !Array.isArray(offer.slots) || !offer.slots.length || !minimized) return null;
   return html`<button type="button" class="rewardpill" onClick=${() => onMinimize(false)}>
-    <${Icon} name="crown" /><span>晋升奖励待选择</span><${TierChip} tier=${offer.tier || 1} size="sm" />
+    <${Icon} name="crown" /><span>${translateText('晋升奖励待选择')}</span><${TierChip} tier=${offer.tier || 1} size="sm" />
   </button>`;
 }

@@ -14,12 +14,13 @@ import { sortBonds, bondMembers, nextThreshold, bondTier } from './gameLogic.js'
 import { formatBondEffect } from './richText.js';
 import { bondIconUrl } from './assetUrls.js';
 import { data } from '../data.js';
+import { translateText, isEnglish } from '../i18n.js';
 
 const cx = (...p) => p.flat().filter(Boolean).join(' ');
 
 /** The "👁 name" tag of a teammate's strip (DESIGN §20.15). */
 function OwnerTag({ owner }) {
-  return html`<span class="bstrip__owner" title=${`正在查看 ${owner} 的盟约`} data-owner=${owner}>
+  return html`<span class="bstrip__owner" title=${translateText(`正在查看 ${owner} 的盟约`)} data-owner=${owner}>
     <${GIcon} name="eye" class="bstrip__eye" /><${MicroLabel}>${owner}</${MicroLabel}>
   </span>`;
 }
@@ -32,12 +33,12 @@ export function BondStrip({ bonds, layersDisabled = false, onOpen, openId = null
   const sorted = sortBonds(bonds, (id) => data.lookup('bonds', id));
   if (!sorted.length) {
     return html`<div class=${cx('bstrip', 'bstrip--empty', owner && 'is-other')} data-owner=${owner || null}>
-      ${owner ? html`<${OwnerTag} owner=${owner} />` : html`<${MicroLabel}>BONDS</${MicroLabel}>`}<span>${owner ? `${owner} 尚未激活盟约` : '部署干员以激活盟约'}</span></div>`;
+      ${owner ? html`<${OwnerTag} owner=${owner} />` : html`<${MicroLabel}>BONDS</${MicroLabel}>`}<span>${owner ? translateText(`${owner} 尚未激活盟约`) : translateText('部署干员以激活盟约')}</span></div>`;
   }
   const m = data.get('assets');
   const shown = sorted.slice(0, max);
   const strip = html`<div class=${cx('bstrip', layersDisabled && 'is-frozen', owner && 'is-other')} role="list"
-      aria-label=${owner ? `${owner} 的盟约` : '我的盟约'} data-owner=${owner || null}>
+      aria-label=${owner ? translateText(`${owner} 的盟约`) : translateText('我的盟约')} data-owner=${owner || null}>
     ${owner ? html`<${OwnerTag} owner=${owner} />` : null}
     ${shown.map((b) => {
       const rec = data.lookup('bonds', b.bondId);
@@ -53,7 +54,7 @@ export function BondStrip({ bonds, layersDisabled = false, onOpen, openId = null
     })}
     ${sorted.length > shown.length ? html`<span class="bstrip__more num">+${sorted.length - shown.length}</span>` : null}
   </div>`;
-  return layersDisabled ? html`<${Tooltip} text="层数叠加已禁用" placement="bottom">${strip}<//>` : strip;
+  return layersDisabled ? html`<${Tooltip} text=${translateText('层数叠加已禁用')} placement="bottom">${strip}<//>` : strip;
 }
 
 /**
@@ -77,37 +78,37 @@ export function BondPopup({ bondId, entry, priv, banned = [], onClose, onMember,
   const hasNow = !!(b.effectDescRaw || b.effectDesc);
   const at = place || (beside === 'left' ? 'beside' : 'left');
   return html`<div class=${cx('bpop', 'brackets', `bpop--${at}`, over && 'is-over', owner && 'is-other')} data-place=${at} data-owner=${owner || null}
-      role="dialog" aria-label=${owner ? `${owner} 的盟约：${b.name}` : `盟约：${b.name}`}>
-    <button type="button" class="bpop__close" aria-label="关闭" onClick=${onClose}><${Icon} name="close" /></button>
+      role="dialog" aria-label=${owner ? translateText(`${owner} 的盟约：${b.name}`) : translateText(`盟约：${b.name}`)}>
+    <button type="button" class="bpop__close" aria-label=${translateText('关闭')} onClick=${onClose}><${Icon} name="close" /></button>
     <header class="bpop__head">
       <div class=${cx('bpop__disc', active && 'is-active')}><${BondGlyph} bondId=${bondId} /></div>
       <div class="bpop__titles">
-        <${MicroLabel} tone="mint">${b.isCore ? 'CORE BOND // 核心盟约' : 'ADD-ON BOND // 附加盟约'}</${MicroLabel}>
-        ${owner ? html`<span class="bpop__owner"><${GIcon} name="eye" /><b>${owner}</b> 的盟约</span>` : null}
+        <${MicroLabel} tone="mint">${b.isCore ? translateText('CORE BOND // 核心盟约') : translateText('ADD-ON BOND // 附加盟约')}</${MicroLabel}>
+        ${owner ? html`<span class="bpop__owner"><${GIcon} name="eye" />${isEnglish() ? html`<b>${owner}</b>'s Alliances` : html`<b>${owner}</b> 的盟约`}</span>` : null}
         <h3 class="bpop__name">${b.name}</h3>
         <div class="bpop__facts">
-          <span>在场 <b class="num">${count}</b>${next != null ? html`<small class="num">/${next}</small>` : null}${countsHand ? html`<small>（含整备区）</small>` : null}</span>
-          <span>层数 <b class="num t-mint">${layers}</b></span>
-          <span class=${active ? 't-mint' : 't-lo'}>${active ? `已激活${th.length > 1 ? ` · ${tier} 阶` : ''}` : '未激活'}</span>
+          <span>${translateText('在场')} <b class="num">${count}</b>${next != null ? html`<small class="num">/${next}</small>` : null}${countsHand ? html`<small>${translateText('（含整备区）')}</small>` : null}</span>
+          <span>${translateText('层数')} <b class="num t-mint">${layers}</b></span>
+          <span class=${active ? 't-mint' : 't-lo'}>${active ? (isEnglish() ? `Active${th.length > 1 ? ` · Tier ${tier}` : ''}` : `已激活${th.length > 1 ? ` · ${tier} 阶` : ''}`) : translateText('未激活')}</span>
         </div>
       </div>
     </header>
     <div class="bpop__tiers">
-      ${th.map((n, i) => html`<span key=${i} class=${cx('bpop__tier', i < tier && 'is-on')}><b class="num">${n}</b><small>${b.maxCount != null ? '名及以下' : '名'}</small></span>`)}
+      ${th.map((n, i) => html`<span key=${i} class=${cx('bpop__tier', i < tier && 'is-on')}><b class="num">${n}</b><small>${b.maxCount != null ? translateText('名及以下') : (isEnglish() ? '' : '名')}</small></span>`)}
     </div>
     ${hasNow ? html`<section class="bpop__sec bpop__sec--now">
-      <h4>当前效果 <small class="num">（${layers} 层）</small></h4>
+      <h4>${translateText('当前效果')} <small class="num">（${layers} ${translateText('层')}）</small></h4>
       <${RichText} as="p" text=${formatBondEffect(b, layers)} class="bpop__desc" />
     </section>` : null}
     <section class="bpop__sec">
-      <h4>盟约效果</h4>
+      <h4>${translateText('盟约效果')}</h4>
       <${RichText} as="p" text=${b.descRaw || b.desc} class="bpop__desc" />
     </section>
     <section class="bpop__sec">
-      <h4>成员 <small>${members.filter((x) => x.onBoard).length}/${members.length}</small></h4>
+      <h4>${translateText('成员')} <small>${members.filter((x) => x.onBoard).length}/${members.length}</small></h4>
       <div class="bpop__members">
         ${members.map((mb) => html`<button key=${mb.id} type="button" class=${cx('bpop__member', mb.onBoard && 'is-on', mb.owned && !mb.onBoard && 'is-owned', mb.banned && 'is-banned')}
-            onClick=${() => onMember?.(mb.id)} title=${`${mb.name}${mb.banned ? '（本局禁用）' : mb.onBoard ? '（在场）' : mb.owned ? '（整备区）' : ''}`}>
+            onClick=${() => onMember?.(mb.id)} title=${`${mb.name}${mb.banned ? translateText('（本局禁用）') : mb.onBoard ? translateText('（在场）') : mb.owned ? translateText('（整备区）') : ''}`}>
           <${UnitThumb} kind="chess" id=${mb.id} size="sm" dim=${!mb.owned || mb.banned} />
           <span class="bpop__mname">${mb.name}</span>
           ${mb.banned ? html`<span class="bpop__ban"><${Icon} name="close" /></span>` : null}

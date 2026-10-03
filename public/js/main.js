@@ -44,6 +44,7 @@ import { settingsStore, useSettings } from './ui/settings.js';
 import { GuideHost } from './ui/guide.js';
 import { installDeviceSupport } from './ui/device.js';
 import { LoadoutHost } from './screens/loadout.js';
+import { CompendiumHost } from './screens/compendium.js';
 import { installLoadoutSync } from './ui/loadoutSync.js';
 
 const RESTORE_GRACE_MS = 1500;
@@ -271,6 +272,7 @@ function App() {
     <${UiHosts} />
     <${GuideHost} />
     <${LoadoutHost} />
+    <${CompendiumHost} />
   </div>`;
 }
 
