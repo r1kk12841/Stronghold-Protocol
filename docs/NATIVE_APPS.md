@@ -31,6 +31,10 @@ npm run android:open
 
 Build a debug APK from the command line with `npm run android:apk` after the Android SDK is configured.
 
+The tag-based GitHub release workflow publishes a debug-signed APK so it can be installed without repository
+secrets. It is intended for direct testing/distribution, not Google Play. A Play Store release should use a private
+upload keystore stored in GitHub Actions secrets and build the release variant instead.
+
 ## Windows
 
 ```powershell
@@ -40,3 +44,17 @@ npm run windows:dist
 ```
 
 The portable executable is written under `dist-windows/`. The Electron window serves local files through the secure `sp://app/` protocol; Node integration is disabled and renderer sandboxing is enabled.
+
+## GitHub releases
+
+Push a semantic-version tag to build both apps and attach them, plus SHA-256 checksums, to one GitHub Release:
+
+```powershell
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+The workflow is defined in `.github/workflows/release.yml`. It uses the repository's short-lived `GITHUB_TOKEN` and
+does not require the personal access token requested by the older Marketplace example. Android assets are named
+`Stronghold-Protocol-Android-<tag>-debug.apk`; Windows assets are named
+`Stronghold-Protocol-Windows-<tag>.exe`.

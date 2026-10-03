@@ -1,5 +1,8 @@
 apply plugin: 'com.android.application'
 
+def releaseVersionCode = System.getenv('SP_VERSION_CODE')?.toInteger() ?: 1
+def releaseVersionName = (System.getenv('SP_VERSION_NAME') ?: '0.1.0').replaceFirst('^v', '')
+
 android {
     namespace = "io.github.r1kk12841.strongholdprotocol"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -7,8 +10,8 @@ android {
         applicationId "io.github.r1kk12841.strongholdprotocol"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        versionCode releaseVersionCode
+        versionName releaseVersionName
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
