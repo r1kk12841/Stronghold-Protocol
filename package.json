@@ -4,13 +4,14 @@
   "private": true,
   "description": "明日方舟「卫戍协议：盟约」非官方同人联机网页复刻（1–4 人合作，Node.js 服务器 + 浏览器客户端）",
   "license": "GPL-3.0-or-later",
-  "homepage": "https://github.com/sganggs/Stronghold-Protocol#readme",
+  "author": "r1kk12841",
+  "homepage": "https://github.com/r1kk12841/Stronghold-Protocol#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/sganggs/Stronghold-Protocol.git"
+    "url": "git+https://github.com/r1kk12841/Stronghold-Protocol.git"
   },
   "bugs": {
-    "url": "https://github.com/sganggs/Stronghold-Protocol/issues"
+    "url": "https://github.com/r1kk12841/Stronghold-Protocol/issues"
   },
   "keywords": [
     "arknights",
@@ -33,7 +34,15 @@
     "postinstall": "node tools/vendor.mjs",
     "setup": "node tools/setup.mjs",
     "doctor": "node tools/doctor.mjs",
-    "launch": "node scripts/launch.mjs"
+    "launch": "node scripts/launch.mjs",
+    "native:build": "node tools/build-native-client.mjs",
+    "build-asset-sources": "node tools/build-asset-sources.mjs",
+    "android:add": "npm run native:build && cap add android",
+    "android:sync": "npm run native:build && cap sync android",
+    "android:open": "npm run android:sync && cap open android",
+    "android:apk": "npm run android:sync && cd android && gradlew.bat assembleDebug",
+    "windows:dev": "npm run native:build && electron desktop/main.cjs",
+    "windows:dist": "npm run native:build && electron-builder --win portable"
   },
   "engines": {
     "node": ">=22"
@@ -47,6 +56,32 @@
     "ws": "^8.22.0"
   },
   "devDependencies": {
+    "@capacitor/android": "8.5.2",
+    "@capacitor/cli": "8.5.2",
+    "@capacitor/core": "8.5.2",
+    "electron": "44.5.1",
+    "electron-builder": "26.15.3",
     "puppeteer-core": "^25.12.0"
+  },
+  "build": {
+    "appId": "io.github.r1kk12841.strongholdprotocol",
+    "productName": "Stronghold Protocol",
+    "asar": true,
+    "directories": {
+      "output": "dist-windows"
+    },
+    "files": [
+      "desktop/**/*",
+      "native-dist/**/*",
+      "package.json"
+    ],
+    "extraMetadata": {
+      "main": "desktop/main.cjs"
+    },
+    "win": {
+      "target": [
+        "portable"
+      ]
+    }
   }
 }

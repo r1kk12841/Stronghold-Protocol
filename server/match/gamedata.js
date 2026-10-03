@@ -11,8 +11,18 @@
 // (the former enemyHpMul / enemyAtkMul / enemySpeedMul / bossHpMul / flyPlaceholders knobs were removed; a tuning file
 // that still carries them is ignored).
 
-import { getConfig, getMode } from '../data.js';
 import { isShopItem } from '../sim/simdata.js';
+
+// Keep this module browser-safe: the bundled solo engine imports it directly, while server/data.js
+// also imports node:fs/path. These two selectors are deliberately pure and mirror server/data.js.
+const getConfig = (data) => (data && typeof data.config === 'object' && data.config ? data.config : null);
+const getMode = (modeId, data) => {
+  const cfg = getConfig(data);
+  const modes = cfg && typeof cfg === 'object' ? (cfg.modes || cfg.modeDataDict) : null;
+  if (!modes || typeof modes !== 'object') return null;
+  if (Array.isArray(modes)) return modes.find((m) => m && (m.modeId === modeId || m.id === modeId)) || null;
+  return typeof modeId === 'string' && Object.hasOwn(modes, modeId) ? modes[modeId] : null;
+};
 
 const own = (map, id) => (map && typeof map === 'object' && typeof id === 'string' && Object.hasOwn(map, id) && map[id] && typeof map[id] === 'object' ? map[id] : null);
 const numOr = (v, d) => (typeof v === 'number' && Number.isFinite(v) ? v : d);

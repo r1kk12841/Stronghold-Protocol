@@ -175,6 +175,7 @@ function Ridges() {
 }
 
 const STATUS_TEXT = {
+  local: '本地模式已就绪',
   idle: '准备连接', connecting: '正在连接服务器', connected: '已连接服务器', handshaking: '正在验证身份',
   online: '已连接服务器', reconnecting: '连接中断，正在重连', closed: '连接已关闭',
 };
@@ -204,7 +205,7 @@ export function TitleScreen() {
     enterSession(name);
   };
 
-  const online = conn.status === 'online' || conn.status === 'connected';
+  const online = conn.status === 'local' || conn.status === 'online' || conn.status === 'connected';
   const dotClass = online ? 'is-on' : conn.status === 'reconnecting' || conn.status === 'connecting' || conn.status === 'handshaking' ? 'is-warn' : 'is-bad';
 
   // touch screens: no autofocus (it would pop the on-screen keyboard over a landscape phone's whole view)

@@ -12,6 +12,7 @@ import { useDocClass } from './device.js';
 /** Whether the banner shows for this connection state (mirrors the early returns below). */
 export function bannerVisible(conn, entered, restoring) {
   if (!entered || !conn) return false;
+  if (conn.status === 'local') return false;
   if (conn.status === 'online') return !!restoring;
   if (!conn.everOnline && (conn.status === 'connecting' || conn.status === 'handshaking' || conn.status === 'idle')) return false;
   return true;
@@ -24,6 +25,7 @@ export function ConnectionBanner() {
   useTicker(conn.status === 'reconnecting' ? 500 : 0);
   useDocClass('sp-conn', bannerVisible(conn, entered, restoring));
   if (!entered) return null;
+  if (conn.status === 'local') return null;
   if (conn.status === 'online' && !restoring) return null;
   if (conn.status === 'online' && restoring) {
     return html`<div class="conn-banner" role="status"><${Icon} name="refresh" /><span>正在同步同盟状态…</span></div>`;

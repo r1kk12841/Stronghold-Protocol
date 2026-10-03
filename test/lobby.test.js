@@ -361,8 +361,13 @@ describe('static http server (real repository roots)', () => {
   before(async () => { srv = await startServer({ port: 0, host: '127.0.0.1', quiet: true }); });
   after(async () => { await srv?.close(); });
 
-  test('serves shared/ ESM and never exposes server code or package.json', async () => {
+  test('serves browser-safe shared/match ESM and never exposes private server code or package.json', async () => {
     for (const p of ['/shared/constants.js', '/shared/protocol.js']) {
+      const r = await httpReq(srv.port, p);
+      assert.equal(r.status, 200, p);
+      assert.equal(r.headers['content-type'], 'text/javascript; charset=utf-8');
+    }
+    for (const p of ['/match/Match.js', '/match/gamedata.js']) {
       const r = await httpReq(srv.port, p);
       assert.equal(r.status, 200, p);
       assert.equal(r.headers['content-type'], 'text/javascript; charset=utf-8');

@@ -29,8 +29,8 @@
 // Shared modules are imported relatively: in the browser '../../shared/x.js' from /js/ resolves
 // to /shared/x.js (URL resolution clamps at the root); under Node it resolves to <repo>/shared.
 
-import { PROTOCOL_VERSION, ERR_TEXT } from '../../shared/constants.js';
-import { validateC2S } from '../../shared/protocol.js';
+import { PROTOCOL_VERSION, ERR_TEXT, modeIdFor } from '../../shared/constants.js';
+import { validateC2S, checkLoadout } from '../../shared/protocol.js';
 
 export const REQUEST_TIMEOUT_MS = 8000;
 export const HELLO_TIMEOUT_MS = 8000;
@@ -97,6 +97,12 @@ export function backoffDelay(attempt, rand = Math.random) {
  * @returns {string}
  */
 export function defaultWsUrl(loc = globalThis.location) {
+  const configured = globalThis.__SP_RUNTIME_CONFIG__?.backendOrigin;
+  if (typeof configured === 'string' && configured) {
+    const url = new URL('/ws', configured);
+    url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
+    return url.href;
+  }
   if (!loc || !loc.host) return 'ws://localhost:3000/ws';
   return `${loc.protocol === 'https:' ? 'wss' : 'ws'}://${loc.host}/ws`;
 }
@@ -831,5 +837,259 @@ export function createIdentity(deps = {}) {
 /** Browser identity singleton (main.js awaits `identity.init()` before connecting). */
 export const identity = createIdentity();
 
-/** Browser connection singleton (created lazily-safe: nothing touches the network until connect()). */
-export const net = new Net({ getToken: () => identity.getToken() });
+const LOCAL_DATA_FILES = Object.freeze([
+  'config', 'tuning', 'chess', 'bonds', 'garrisons', 'items', 'bands', 'effects', 'choices',
+  'enemies', 'factions', 'waves', 'stages', 'bosses', 'tokens',
+]);
+
+/**
+ * Local-first transport. Solo rooms run the same Match engine in this browser; the real WebSocket
+ * is created only after a co-op room is created/joined (or an invite deep-link is opened).
+ */
+export class LocalFirstNet {
+  constructor(remote) {
+    this.remote = remote;
+    this.name = '';
+    this.playerId = 'local-player';
+    this.channel = 'local';
+    this.remoteWanted = false;
+    this.localRoom = null;
+    this.localMatch = null;
+    this.localLoadout = null;
+    this._localWelcomed = false;
+    this._listeners = new Map();
+    this._hooked = false;
+
+    remote.on('*', (msg) => {
+      if (this.channel !== 'remote') return;
+      this.playerId = remote.playerId || this.playerId;
+      this._emit(msg.t, msg);
+      this._emit('*', msg);
+    });
+    for (const type of ['status', 'clock', 'ping', 'helloError', 'unhandledError', 'replaced']) {
+      remote.on(type, (value) => { if (this.channel === 'remote') this._emit(type, value); });
+    }
+  }
+
+  get status() { return this.channel === 'remote' ? this.remote.status : 'local'; }
+  get ping() { return this.channel === 'remote' ? this.remote.ping : null; }
+  get pendingCount() { return this.channel === 'remote' ? this.remote.pendingCount : 0; }
+
+  snapshot() {
+    if (this.channel === 'remote') return this.remote.snapshot();
+    return { status: 'local', attempt: 0, retryAt: 0, ping: null, lastError: null, playerId: this.playerId };
+  }
+
+  on(type, fn) {
+    if (typeof fn !== 'function') return () => {};
+    let set = this._listeners.get(type);
+    if (!set) this._listeners.set(type, (set = new Set()));
+    set.add(fn);
+    return () => this.off(type, fn);
+  }
+
+  off(type, fn) { this._listeners.get(type)?.delete(fn); }
+
+  _emit(type, payload) {
+    for (const fn of [...(this._listeners.get(type) || [])]) {
+      try { fn(payload); } catch (err) { console.error(`[net] listener for "${type}" failed`, err); }
+    }
+  }
+
+  _emitMessage(msg) {
+    if (!msg || typeof msg.t !== 'string') return;
+    this._emit(msg.t, msg);
+    this._emit('*', msg);
+  }
+
+  startLocal() {
+    this._emit('status', this.snapshot());
+    if (!this._localWelcomed) {
+      this._localWelcomed = true;
+      this._emitMessage({ t: 'welcome', playerId: this.playerId, name: this.name || 'Doctor', token: null, serverNow: Date.now(), local: true });
+    }
+  }
+
+  setName(name) {
+    const n = typeof name === 'string' ? name.trim() : '';
+    if (!n) return;
+    this.name = n;
+    if (this.channel === 'remote') this.remote.setName(n);
+  }
+
+  /** Explicitly opt into the co-op server. */
+  connectCoop() {
+    this.remoteWanted = true;
+    this.channel = 'remote';
+    if (this.name) this.remote.setName(this.name);
+    else this.remote.connect();
+    this._emit('status', this.remote.snapshot());
+  }
+
+  connect() { if (this.remoteWanted) this.connectCoop(); else this.startLocal(); }
+  retryNow() { if (this.remoteWanted) this.remote.retryNow(); }
+  reconnectNow() { if (this.remoteWanted) this.remote.reconnectNow(); }
+  probe() { if (this.remoteWanted) this.remote.probe(); }
+  serverNow() { return this.channel === 'remote' ? this.remote.serverNow() : Date.now(); }
+
+  close() {
+    this.localMatch?.dispose?.();
+    this.localMatch = null;
+    this.localRoom = null;
+    if (this.remoteWanted) this.remote.close();
+    this.remoteWanted = false;
+    this.channel = 'local';
+    this.startLocal();
+  }
+
+  attachBrowserHooks() {
+    if (typeof window === 'undefined' || this._hooked) return;
+    this._hooked = true;
+    window.addEventListener('online', () => { if (this.remoteWanted) this.remote.retryNow(); });
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState !== 'visible' || !this.remoteWanted) return;
+      if (this.remote.status === 'reconnecting') this.remote.retryNow();
+      else if (this.remote.status === 'online' || this.remote.status === 'connected') this.remote.probe();
+    });
+  }
+
+  async request(t, fields = {}, opts = {}) {
+    if (t === 'room.create' && fields.mode === 'solo') return this._createLocal(fields.difficulty);
+    if (t === 'room.create' || t === 'room.join') {
+      this.connectCoop();
+      return this.remote.request(t, fields, opts);
+    }
+    if (this.localRoom || (t === 'room.loadout' && this.channel === 'local')) return this._localRequest(t, fields);
+    if (this.channel === 'remote') {
+      if (t === 'room.leave') {
+        try {
+          return await this.remote.request(t, fields, opts);
+        } finally {
+          // A remote room is the only reason the app needs a live server connection.
+          // Return to the fully-local transport even when the server says the room is gone.
+          this.channel = 'local';
+          this.remoteWanted = false;
+          this.remote.close();
+          this._emit('status', this.snapshot());
+        }
+      }
+      return this.remote.request(t, fields, opts);
+    }
+    throw new NetError('NOT_IN_ROOM');
+  }
+
+  send(t, fields = {}) {
+    if (this.localRoom) {
+      this._localRequest(t, fields).catch((err) => this._emit('unhandledError', err));
+      return true;
+    }
+    return this.channel === 'remote' ? this.remote.send(t, fields) : false;
+  }
+
+  _roomState() {
+    const r = this.localRoom;
+    if (!r) return null;
+    return {
+      t: 'room.state', code: r.code, hostId: this.playerId, mode: 'solo', difficulty: r.difficulty,
+      inMatch: !!this.localMatch,
+      seats: [{ seat: 0, playerId: this.playerId, name: this.name || 'Doctor', isBot: false, ready: !!r.ready, connected: true }, null, null, null],
+    };
+  }
+
+  _broadcastLocalRoom() {
+    const state = this._roomState();
+    if (state) this._emitMessage(state);
+  }
+
+  async _createLocal(difficulty) {
+    if (this.localMatch) throw new NetError('ROOM_STARTED');
+    const hadRemote = this.channel === 'remote' && this.remoteWanted;
+    this.channel = 'local';
+    this.remoteWanted = false;
+    if (hadRemote) this.remote.close();
+    this.localRoom = { code: 'LOCAL', difficulty, ready: false };
+    this._emit('status', this.snapshot());
+    this._broadcastLocalRoom();
+    return { t: 'ok' };
+  }
+
+  async _localRequest(t, fields) {
+    if (t === 'room.loadout') {
+      const { data } = await import('./data.js');
+      await data.load('chess');
+      const checked = checkLoadout(fields.entries, (id) => data.raw('chess')?.[id] || null);
+      if (!checked || checked.error) throw new NetError(checked?.error || 'BAD_MSG', null, checked?.detail);
+      this.localLoadout = checked.loadout;
+      if (this.localMatch) {
+        const res = this.localMatch.setLoadout(this.playerId, this.localLoadout);
+        if (res?.error) throw new NetError(res.error, null, res.detail);
+      }
+      return { t: 'ok' };
+    }
+    if (!this.localRoom) throw new NetError('NOT_IN_ROOM');
+    if (t === 'room.start') return this._startLocalMatch();
+    if (t === 'room.setDifficulty') {
+      if (this.localMatch) throw new NetError('ROOM_STARTED');
+      this.localRoom.difficulty = fields.difficulty;
+      this._broadcastLocalRoom();
+      return { t: 'ok' };
+    }
+    if (t === 'room.ready') {
+      this.localRoom.ready = !!fields.ready;
+      this._broadcastLocalRoom();
+      return { t: 'ok' };
+    }
+    if (t === 'room.leave' || t === 'g.leave') {
+      this.localMatch?.onLeave?.(this.playerId);
+      this.localMatch?.dispose?.();
+      this.localMatch = null;
+      if (t === 'room.leave') this.localRoom = null;
+      return { t: 'ok' };
+    }
+    if (t === 'room.addBot' || t === 'room.removeBot') throw new NetError('ROOM_FULL', null, 'solo room');
+    if (t.startsWith('g.') || t.startsWith('b.')) {
+      if (!this.localMatch) throw new NetError('WRONG_PHASE');
+      const res = this.localMatch.handle(this.playerId, { ...fields, t });
+      if (res?.error) throw new NetError(res.error, null, res.detail);
+      return { t: 'ok' };
+    }
+    throw new NetError('BAD_MSG');
+  }
+
+  async _startLocalMatch() {
+    if (this.localMatch) throw new NetError('ROOM_STARTED');
+    const [{ data }, { Match }] = await Promise.all([import('./data.js'), import('../../match/Match.js')]);
+    await data.loadAll(LOCAL_DATA_FILES);
+    const raw = Object.fromEntries(LOCAL_DATA_FILES.map((name) => [name, data.raw(name)]).filter(([, value]) => value != null));
+    const room = this.localRoom;
+    if (!room) throw new NetError('NOT_IN_ROOM');
+    const match = new Match({
+      roomCode: room.code,
+      mode: 'solo',
+      difficulty: room.difficulty,
+      modeId: modeIdFor('solo', room.difficulty),
+      seats: [{ seat: 0, playerId: this.playerId, name: this.name || 'Doctor', isBot: false, connected: true, loadout: this.localLoadout }],
+      seed: (Math.random() * 0x100000000) >>> 0,
+      matchNo: 1,
+      data: raw,
+      clientCombat: true,
+      send: (playerId, msg) => { if (playerId !== this.playerId) return false; this._emitMessage(msg); return true; },
+      broadcast: (msg) => this._emitMessage(msg),
+      onEnd: () => {
+        if (this.localMatch !== match) return;
+        this.localMatch = null;
+        if (this.localRoom) this.localRoom.ready = false;
+        this._broadcastLocalRoom();
+        setTimeout(() => match.dispose(), 0);
+      },
+    });
+    this.localMatch = match;
+    room.ready = true;
+    this._broadcastLocalRoom();
+    match.start();
+    return { t: 'ok' };
+  }
+}
+
+/** Local-first browser singleton; the nested Net remains dormant until co-op is requested. */
+export const net = new LocalFirstNet(new Net({ getToken: () => identity.getToken() }));

@@ -278,17 +278,19 @@ function splitUrl(url) {
 
 /**
  * Create the static request handler.
- * @param {{ publicDir: string, dataDir: string, sharedDir: string, simDir?: string, log?: object }} dirs
+ * @param {{ publicDir: string, dataDir: string, sharedDir: string, simDir?: string, matchDir?: string, log?: object }} dirs
  * @returns {(req: http.IncomingMessage, res: http.ServerResponse, rawPath: string, query: string) => Promise<void>}
  */
 /** Optional per-machine art manifest (tools/local-extract) and the empty stand-in served when it is absent. */
 const LOCAL_ART_MANIFEST = 'local-assets.json';
 const EMPTY_LOCAL_ART = Buffer.from(JSON.stringify({ version: 1, source: 'none', count: 0, groups: {} }));
 
-export function createStaticHandler({ publicDir, dataDir, sharedDir, simDir = path.join(ROOT, 'server', 'sim'), log = noopLog }) {
+export function createStaticHandler({ publicDir, dataDir, sharedDir, simDir = path.join(ROOT, 'server', 'sim'), matchDir = path.join(ROOT, 'server', 'match'), log = noopLog }) {
   const mounts = [
     { prefix: '/data/', name: 'data', dir: path.resolve(dataDir) },
     { prefix: '/shared/', name: 'shared', dir: path.resolve(sharedDir) },
+    // Browser-safe match engine used by local solo mode. JavaScript only; the rest of server/ stays private.
+    { prefix: '/match/', name: 'match', dir: path.resolve(matchDir), only: new Set(['.js']) },
     // the simulation: ES modules only (no directory listings, no other file types, no Node-only loader)
     { prefix: '/sim/', name: 'sim', dir: path.resolve(simDir), only: new Set(['.js']), deny: SIM_PRIVATE },
     { prefix: '/', name: 'public', dir: path.resolve(publicDir) },

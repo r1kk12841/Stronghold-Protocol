@@ -17,6 +17,7 @@
 
 import { useEffect, useReducer } from '../vendor/hooks.module.js';
 import { installEnglishCatalog, localizeData } from './i18n.js';
+import { rewriteContentManifest, rewriteFromSourceMap } from './contentUrls.js';
 
 /** Known data files (name → URL basename). Unknown names are allowed too (`/data/<name>.json`). */
 export const DATA_FILES = Object.freeze({
@@ -126,7 +127,13 @@ export function createDataStore(opts = {}) {
           if (!res || !res.ok) throw Object.assign(new Error(`HTTP ${res ? res.status : '???'}`), { status: res ? res.status : null });
           let json;
           try { json = await res.json(); } catch (err) { throw Object.assign(err instanceof Error ? err : new Error(String(err)), { badJson: true }); }
-          entry.value = json;
+          if (name === 'assets' && globalThis.__SP_RUNTIME_CONFIG__?.assetSourceMap) {
+            try {
+              const mapRes = await doFetch(globalThis.__SP_RUNTIME_CONFIG__.assetSourceMap, { cache: 'no-cache' });
+              if (mapRes?.ok) json = rewriteFromSourceMap(json, await mapRes.json());
+            } catch (err) { console.warn(`[data] remote asset map unavailable (${err?.message || err})`); }
+          }
+          entry.value = name === 'assets' || name === 'local' ? rewriteContentManifest(json) : json;
           if (name === 'i18nEn') installEnglishCatalog(json);
           entry.status = 'ready';
           break;
@@ -169,6 +176,8 @@ export function createDataStore(opts = {}) {
     loadAll: (...names) => Promise.all(names.flat().map(load)),
     /** Raw JSON of a loaded file (null when missing / not loaded yet). */
     get: (name) => localizeData(name, entries.get(name)?.value ?? null),
+    /** Canonical, untranslated JSON used by the bundled local match engine. */
+    raw: (name) => entries.get(name)?.value ?? null,
     /** 'idle' | 'loading' | 'ready' | 'missing' */
     status: (name) => entries.get(name)?.status ?? 'idle',
     /** Record by id from a loaded file (null when unknown / not loaded). */

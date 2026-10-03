@@ -90,7 +90,12 @@ function schedulePendingJoin() {
   joinTimer = setTimeout(async () => {
     const s = store.get();
     const code = s.ui.pendingJoin;
-    if (!code || joinInFlight || !s.session.entered || net.status !== 'online') return;
+    if (!code || joinInFlight || !s.session.entered) return;
+    if (net.status === 'local') {
+      net.connectCoop();
+      return;
+    }
+    if (net.status !== 'online') return;
     if (s.room) {
       if (s.room.code !== code) toast('你已在其他同盟中，请先离开当前同盟', 'warn');
       clearPendingJoin();
@@ -197,6 +202,7 @@ function wireNet() {
         lastError: snap.lastError, everOnline: cur.everOnline || snap.status === 'online',
       },
     });
+    if (snap.status === 'online') schedulePendingJoin();
   });
   net.on('clock', (c) => store.set({ clock: { offset: c.offset, rtt: c.rtt, synced: c.synced } }));
   net.on('welcome', onWelcome);
@@ -336,11 +342,12 @@ async function boot() {
   // Optional local-client art manifest (emotes, tutorial pages, official UI sprites; DESIGN §13).
   data.load('local').catch(() => {});
 
-  const connectWhenReady = identityReady.then(() => {
+  const localReady = identityReady.then(() => {
     if (entered) net.setName(savedName);
-    else net.connect();
+    net.startLocal();
+    if (pendingJoin && entered) schedulePendingJoin();
   });
-  await Promise.all([waitForFonts(1200), connectWhenReady]);
+  await Promise.all([waitForFonts(1200), localReady]);
   const root = document.getElementById('app');
   render(html`<${App} />`, root);
 

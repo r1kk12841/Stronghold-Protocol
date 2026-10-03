@@ -16,6 +16,8 @@
 // so it can be unit tested without a browser. Helpers never throw on unknown ids — they return null and the
 // caller falls back (docs/ASSETS.md "Other fallbacks").
 
+import { rewriteContentManifest, rewriteFromSourceMap } from './contentUrls.js';
+
 const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
 const str = (v) => (typeof v === 'string' && v ? v : null);
 const get = (o, k) => (isObj(o) && Object.hasOwn(o, k) ? o[k] : undefined);
@@ -557,8 +559,15 @@ export function createAssets(options) {
         try {
           const res = await doFetch(url, { cache: 'no-cache' });
           if (!res || !res.ok) throw new Error(`HTTP ${res ? res.status : '???'}`);
-          const json = await res.json();
-          manifest = isObj(json) ? json : {};
+          let json = await res.json();
+          const mapUrl = globalThis.__SP_RUNTIME_CONFIG__?.assetSourceMap;
+          if (mapUrl) {
+            try {
+              const mapRes = await doFetch(mapUrl, { cache: 'no-cache' });
+              if (mapRes?.ok) json = rewriteFromSourceMap(json, await mapRes.json());
+            } catch (err) { console.warn(`[assets] remote asset map unavailable (${err?.message || err})`); }
+          }
+          manifest = isObj(json) ? rewriteContentManifest(json) : {};
         } catch (err) {
           console.warn(`[assets] ${url} unavailable (${err?.message || err}); using fallbacks`);
           manifest = {};
@@ -625,7 +634,7 @@ export function createAssets(options) {
           const res = await doFetch(localUrl, { cache: 'no-cache' });
           if (!res || !res.ok) return null;
           const json = await res.json();
-          localManifest = isObj(json) && isObj(json.groups) ? json : null;
+          localManifest = isObj(json) && isObj(json.groups) ? rewriteContentManifest(json) : null;
         } catch { localManifest = null; }
         return localManifest;
       })();

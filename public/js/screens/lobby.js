@@ -9,7 +9,7 @@
 
 import { useEffect, useRef, useState } from '../../vendor/hooks.module.js';
 import { DIFFICULTIES, DIFFICULTY_NAMES, DIFFICULTY_COLORS, ROOM_CODE_LEN, MAX_SEATS, modeIdFor } from '../../../shared/constants.js';
-import { html, Button, Icon, MicroLabel, Panel, TextField, PingPill, AvatarFrame, Tooltip, Spinner, DifficultyIcon, doctorNo } from '../ui/components.js';
+import { html, Button, Icon, MicroLabel, Panel, TextField, PingPill, AvatarFrame, Tooltip, DifficultyIcon, doctorNo } from '../ui/components.js';
 import { toast, toastError } from '../ui/toasts.js';
 import { GuideButton } from '../ui/guide.js';
 import { LoadoutButton } from './loadout.js';
@@ -230,6 +230,7 @@ export function LobbyScreen() {
   useEffect(() => () => { alive.current = false; }, []);
 
   const online = conn.status === 'online';
+  const localReady = conn.status === 'local';
   const codeOk = CODE_RE.test(code);
 
   const pickMode = (m) => { setRoomMode(m); savePref('lobby.mode', m); };
@@ -237,7 +238,6 @@ export function LobbyScreen() {
 
   const run = async (kind, fn) => {
     if (inFlight.current) return;
-    if (!online) { toast('尚未连接到服务器，请稍候', 'warn'); return; }
     inFlight.current = true;
     setBusy(kind);
     try { await fn(); } catch (err) { toastError(err); } finally {
@@ -293,7 +293,7 @@ export function LobbyScreen() {
           <div class="join-row">
             <${TextField} size="code" icon="key" value=${code} placeholder="输入同盟密钥 / 粘贴邀请链接"
               transform=${normalizeCode} onInput=${(v) => setCode(normalizeCode(v))} onEnter=${() => join()} />
-            <${Button} variant="amber" size="lg" icon="users" loading=${busy === 'join'} disabled=${!codeOk || !online} onClick=${() => join()}>加入同盟<//>
+            <${Button} variant="amber" size="lg" icon="users" loading=${busy === 'join'} disabled=${!codeOk} onClick=${() => join()}>加入同盟<//>
           </div>
           <div class="join-foot">
             ${recent.length ? html`<span class="t-lo">最近的同盟</span>
@@ -310,15 +310,17 @@ export function LobbyScreen() {
           ${DIFFICULTIES.map((d) => html`<${DifficultyCard} key=${d} roomMode=${roomMode} difficulty=${d} selected=${difficulty === d} onSelect=${pickDifficulty} />`)}
         </div>
         <div class="create-box">
-          <${Tooltip} block=${true} text=${online ? null : '正在连接服务器…'}>
-            <${Button} variant="primary" size="xl" block=${true} iconRight="chevrons" loading=${busy === 'create'} disabled=${!online} onClick=${create}>
+          <${Tooltip} block=${true} text=${roomMode === 'coop' && !online ? '创建同盟时才连接服务器' : null}>
+            <${Button} variant="primary" size="xl" block=${true} iconRight="chevrons" loading=${busy === 'create'} onClick=${create}>
               ${roomMode === 'solo' ? '开始独立模拟' : '创建同盟'}
             <//>
           <//>
           <div class="create-box__hint">
-            ${online
-              ? html`<span>${roomMode === 'solo' ? '创建后即可开始模拟' : '创建后可邀请好友或添加 AI 队友'}</span>`
-              : html`<${Spinner} size="sm" label="CONNECTING" />`}
+            ${roomMode === 'solo'
+              ? html`<span>${localReady ? '本地运行 · 无需连接服务器' : '正在准备本地模式…'}</span>`
+              : online
+                ? html`<span>创建后可邀请好友或添加 AI 队友</span>`
+                : html`<span>仅在创建或加入同盟时连接服务器</span>`}
           </div>
         </div>
       </section>

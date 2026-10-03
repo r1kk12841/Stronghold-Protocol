@@ -192,8 +192,9 @@ describe('HTML pages reference existing files', () => {
     const src = readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
     assert.match(src, /<script type="module" src="\/js\/main\.js"[^>]*><\/script>/);
     assert.match(src, /class="rotate-hint"/);
-    assert.match(src, /fonts\.googleapis\.com\/css2\?family=Noto\+Sans\+SC/);
+    assert.doesNotMatch(src, /fonts\.googleapis\.com|fonts\.gstatic\.com/, 'native/local shell must not call external font servers');
     assert.match(src, /href="\/fonts\/fonts\.css"/);
+    assert.match(src, /<script src="\/runtime-config\.js"><\/script>/);
   });
 });
 

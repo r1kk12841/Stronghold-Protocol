@@ -1,5 +1,14 @@
 # --- dependencies & generated client libs -------------------------------------------------------
 node_modules/
+.npm-cache/
+native-dist/
+dist-windows/
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+*.jks
+*.keystore
 # copied from node_modules by tools/vendor.mjs (postinstall); never commit third-party builds
 public/vendor/
 

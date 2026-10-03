@@ -29,6 +29,16 @@ describe('English localization', () => {
     assert.equal(translateText('免疫：晕眩'), 'Immune: 晕眩');
     assert.equal(translateText('可晋升：精锐 隐现'), 'Promotable: 精锐 隐现');
     assert.equal(translateText('3 名干员已调整'), '3 Operators customized');
+    assert.equal(translateText('当前延迟 18ms'), 'Current latency 18ms');
+    assert.equal(translateText('同盟密钥 KDYZ'), 'Alliance Key KDYZ');
+    assert.equal(translateText('战场固定为 战场#01'), 'Fixed battlefield: Battlefield #01');
+    assert.equal(translateText('向同伴索取 4 位同盟密钥，或直接打开邀请链接'),
+      'Ask a teammate for the 4-character Alliance Key, or open an invite link');
+    assert.equal(translateText('联合模拟在选择策略时可以进行一次跳过'),
+      'You may skip once while selecting a Strategy in Alliance Simulation');
+    assert.equal(translateText('等待博士加入'), 'Waiting for a Doctor');
+    assert.equal(translateText('调度中心售价：'), 'Dispatch Center Price: ');
+    assert.equal(translateText('弹药'), 'Ammo');
     setLocale('zh');
     assert.equal(translateText('准备就绪'), '准备就绪');
   });

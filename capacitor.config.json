@@ -1,0 +1,9 @@
+{
+  "appId": "io.github.r1kk12841.strongholdprotocol",
+  "appName": "Stronghold Protocol",
+  "webDir": "native-dist",
+  "android": {
+    "backgroundColor": "#0c0f0e",
+    "allowMixedContent": false
+  }
+}
