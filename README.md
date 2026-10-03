@@ -1,5 +1,7 @@
 # 卫戍协议：盟约 · Stronghold Protocol: Covenant
 
+[中文](README.md) · [English](README_EN.md)
+
 《明日方舟》季节性自走棋塔防玩法「卫戍协议：盟约」的**非官方同人复刻**：浏览器即开即玩，单人或 1–4 人联机合作。
 
 ![version](https://img.shields.io/badge/version-0.1.0-2ea44f)
@@ -16,7 +18,7 @@
 > - 权利人如认为本项目侵犯其权益，请通过 Issue 联系，我们会**立即删除**相关内容。
 > - 本项目按「现状」提供，**不提供任何担保**，使用风险自负。
 
-English summary: [below](#english).
+完整英文说明见 **[README_EN.md](README_EN.md)**。
 
 | 同盟房间 | 策略轮选 | 休整期（商店 / 盟约） |
 |---|---|---|
@@ -78,7 +80,7 @@ English summary: [below](#english).
 ### 方式二：从源码运行
 
 ```bash
-git clone https://github.com/sganggs/Stronghold-Protocol.git
+git clone https://github.com/r1kk12841/Stronghold-Protocol.git
 cd Stronghold-Protocol
 npm install        # 安装依赖（postinstall 会把 pixi / preact / three 复制到 public/vendor）
 npm run setup      # 检查环境，并从公开镜像下载约 250 MB 美术 / 音频（可中断，再次运行会续传）
@@ -210,6 +212,7 @@ RENDER_E2E=1 node --test 'test/render/*.browser.test.js'   # 渲染测试，部�
 
 ## 致谢与数据来源
 
+- **原始项目**：[sganggs/Stronghold-Protocol](https://github.com/sganggs/Stronghold-Protocol)。本仓库是该项目的 fork；感谢原作者及贡献者完成核心玩法、服务器、战斗模拟、渲染与文档。本 fork 在其基础上增加英文界面与社区英文资料。
 - 游戏数据：[Kengxxiao/ArknightsGameData](https://github.com/Kengxxiao/ArknightsGameData)。
 - 素材来源：[yuanyan3060/ArknightsGameResource](https://github.com/yuanyan3060/ArknightsGameResource)、[fexli/ArknightsResource](https://github.com/fexli/ArknightsResource)、[isHarryh/Ark-Models](https://github.com/isHarryh/Ark-Models)、[ArknightsAssets/ArknightsAssets2](https://github.com/ArknightsAssets/ArknightsAssets2)；字体来自 [TimWangZi/The-font-of-Arknights](https://github.com/TimWangZi/The-font-of-Arknights) 与 Google Fonts（Noto Sans SC）。详见 [docs/ASSETS.md](docs/ASSETS.md)。
 - 规则核对参考：[PRTS 明日方舟中文 Wiki](https://prts.wiki/)。
