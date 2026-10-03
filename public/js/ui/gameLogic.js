@@ -22,6 +22,7 @@ import { resolveLoadout, loadoutOptions, MODULE_NONE } from '../../../shared/pro
 import { resolveRecordLoadout, loadoutRecord } from '../../../shared/loadoutRecord.js';
 import { layoutPen } from '../render/pen.js';
 import { BOSS_ROW_SHIFT, MAX_COL } from '../render/prepfield.js';
+import { isEnglish } from '../i18n.js';
 import { bossLevelSeconds } from './matchStatus.js';
 
 // ---- small helpers -------------------------------------------------------------------------------
@@ -1180,12 +1181,20 @@ export function attackInterval(bat, aspd = 100) {
   return b * 100 / a;
 }
 
-/** Compact number: 12345 → '12,345'; 1.5e6 → '150万'. */
-export function fmtNum(v) {
+/** Locale-aware compact number: zh 1.5e6 → '150万'; en 1.5e6 → '1.5M'. */
+export function fmtNum(v, language = isEnglish() ? 'en' : 'zh') {
   const n = Number(v);
   if (!Number.isFinite(n)) return '—';
-  if (Math.abs(n) >= 1e8) return `${(n / 1e8).toFixed(n >= 1e9 ? 0 : 1)}亿`;
-  if (Math.abs(n) >= 1e5) return `${(n / 1e4).toFixed(n >= 1e6 ? 0 : 1)}万`;
+  const abs = Math.abs(n);
+  if (language === 'en') {
+    const compact = (divisor, suffix, decimals) => `${(n / divisor).toFixed(decimals).replace(/\.0$/, '')}${suffix}`;
+    if (abs >= 1e9) return compact(1e9, 'B', abs >= 1e10 ? 0 : 1);
+    if (abs >= 1e6) return compact(1e6, 'M', abs >= 1e7 ? 0 : 1);
+    if (abs >= 1e5) return compact(1e3, 'K', abs >= 1e6 ? 0 : 1);
+  } else {
+    if (abs >= 1e8) return `${(n / 1e8).toFixed(abs >= 1e9 ? 0 : 1)}亿`;
+    if (abs >= 1e5) return `${(n / 1e4).toFixed(abs >= 1e6 ? 0 : 1)}万`;
+  }
   return Math.round(n).toLocaleString('en-US');
 }
 

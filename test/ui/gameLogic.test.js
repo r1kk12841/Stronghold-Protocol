@@ -16,6 +16,7 @@ import {
 } from '../../public/js/ui/gameLogic.js';
 import { pairPlayers } from '../../server/match/finalAssault.js';
 import { PHASE, GEO } from '../../shared/constants.js';
+import { setLocale } from '../../public/js/i18n.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const load = (f) => JSON.parse(readFileSync(path.join(ROOT, 'data', f), 'utf8'));
@@ -417,6 +418,13 @@ describe('enemies, HUD, stats', () => {
     assert.equal(fmtNum(12345), '12,345');
     assert.equal(fmtNum(2_310_000), '231万');
     assert.equal(fmtNum(150_000), '15.0万');
+    assert.equal(fmtNum(150_000, 'en'), '150K');
+    assert.equal(fmtNum(2_310_000, 'en'), '2.3M');
+    assert.equal(fmtNum(1_500_000_000, 'en'), '1.5B');
+    assert.equal(fmtNum(-2_310_000, 'en'), '-2.3M');
+    setLocale('en');
+    assert.equal(fmtNum(2_310_000), '2.3M', 'active English UI never uses Chinese number units');
+    setLocale('zh');
     assert.equal(fmtNum('x'), '—');
     const box = rangeGridBox([[1, 0], [0, 1], [-1, 2]]);
     assert.equal(box.rows, 3); assert.equal(box.cols, 3); assert.ok(box.cells.has('0,1'));
