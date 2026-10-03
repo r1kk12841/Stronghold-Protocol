@@ -89,7 +89,7 @@ jobs:
         shell: pwsh
         run: |
           $version = "${{ github.ref_name }}" -replace '^v', ''
-          npm version $version --no-git-tag-version
+          npm version $version --no-git-tag-version --allow-same-version
       - name: Build portable EXE
         run: npm run windows:dist
       - name: Prepare Windows release asset
