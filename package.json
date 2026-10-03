@@ -28,6 +28,7 @@
     "test": "node --test",
     "vendor": "node tools/vendor.mjs",
     "build-data": "node tools/build-data.mjs",
+    "build-i18n-en": "node tools/build-i18n-en.mjs",
     "assets": "node tools/vendor.mjs && node tools/fetch-assets.mjs",
     "postinstall": "node tools/vendor.mjs",
     "setup": "node tools/setup.mjs",

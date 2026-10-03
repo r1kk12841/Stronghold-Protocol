@@ -941,3 +941,22 @@
   --bk-c: var(--red-premium);
 }
 .crash__box h2 { font-size: .3rem; }
+.lang-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: .08rem;
+  min-height: .34rem;
+  padding: .04rem .12rem;
+  border: 1px solid rgba(23, 249, 183, .55);
+  border-color: rgba(23, 249, 183, .55);
+  border-color: color-mix(in srgb, var(--mint) 55%, transparent);
+  border-radius: .04rem;
+  background: rgba(8, 12, 11, .82);
+  background: color-mix(in srgb, var(--bg) 82%, transparent);
+  color: var(--text-lo);
+  font: 700 .14rem/1 Bender, sans-serif;
+  letter-spacing: .04em;
+  cursor: pointer;
+}
+.lang-toggle .is-on { color: var(--mint); }
+.lang-toggle:hover, .lang-toggle:focus-visible { border-color: var(--mint); color: var(--text); }

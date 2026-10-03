@@ -9,15 +9,18 @@ import { sanitizeSettings } from './gameLogic.js';
 import { audio } from '../audio.js';
 import { openGuide } from './guide.js';
 import { detectFeatures } from './device.js';
+import { setLocale } from '../i18n.js';
 
-/** Settings store: { bgm, sfx, muted, damageNumbers, quality }. */
+/** Settings store: { bgm, sfx, muted, damageNumbers, quality, language }. */
 export const settingsStore = createStore(sanitizeSettings(loadPref('settings', null)));
 
 settingsStore.subscribe((s) => {
   savePref('settings', sanitizeSettings(s));
   audio.setVolumes(s);
+  setLocale(s.language);
 });
 audio.setVolumes(settingsStore.get());
+setLocale(settingsStore.get().language);
 
 /** @param {Partial<ReturnType<typeof sanitizeSettings>>} patch */
 export function updateSettings(patch) {
@@ -41,11 +44,21 @@ function Toggle({ label, micro, value, onChange }) {
   return html`<div class="set-row">
     <span class="set-row__label">${label}<${MicroLabel}>${micro}<//></span>
     <button type="button" class=${`set-toggle${value ? ' is-on' : ''}`} role="switch" aria-checked=${value ? 'true' : 'false'}
-      onClick=${() => onChange(!value)}><i></i><span>${value ? '开启' : '关闭'}</span></button>
+      onClick=${() => onChange(!value)}><i></i><span>${value ? '开启' : '已关闭'}</span></button>
   </div>`;
 }
 
 const QUALITY = [['high', '高'], ['medium', '中'], ['low', '低']];
+
+/** Compact language switch used on the title screen. */
+export function LanguageToggle({ class: cls = '' }) {
+  const s = useSettings();
+  const next = s.language === 'en' ? 'zh' : 'en';
+  return html`<button type="button" class=${`lang-toggle ${cls}`.trim()} aria-label="语言"
+    title="中文 / English" onClick=${() => updateSettings({ language: next })}>
+    <span class=${s.language === 'zh' ? 'is-on' : ''}>中文</span><i>/</i><span class=${s.language === 'en' ? 'is-on' : ''}>EN</span>
+  </button>`;
+}
 
 /**
  * Settings modal.
@@ -64,6 +77,15 @@ export function SettingsModal({ open, onClose }) {
         onInput=${(v) => { updateSettings({ sfx: v }); if (!tested) { setTested(true); setTimeout(() => setTested(false), 400); audio.sfx('click'); } }} />
       <${Toggle} label="静音" micro="MUTE" value=${s.muted} onChange=${(v) => updateSettings({ muted: v })} />
       <${Toggle} label="显示伤害数字" micro="DAMAGE NUMBERS" value=${s.damageNumbers} onChange=${(v) => updateSettings({ damageNumbers: v })} />
+      <div class="set-row">
+        <span class="set-row__label">语言<${MicroLabel}>LANGUAGE<//></span>
+        <div class="set-seg" role="radiogroup" aria-label="语言">
+          <button type="button" role="radio" aria-checked=${s.language === 'zh' ? 'true' : 'false'}
+            class=${s.language === 'zh' ? 'is-on' : ''} onClick=${() => updateSettings({ language: 'zh' })}>中文</button>
+          <button type="button" role="radio" aria-checked=${s.language === 'en' ? 'true' : 'false'}
+            class=${s.language === 'en' ? 'is-on' : ''} onClick=${() => updateSettings({ language: 'en' })}>English</button>
+        </div>
+      </div>
       <div class="set-row">
         <span class="set-row__label">画面质量<${MicroLabel}>QUALITY<//></span>
         <div class="set-seg" role="radiogroup">

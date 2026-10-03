@@ -57,6 +57,7 @@ English summary: [below](#english).
 - **交互细节**：漏怪时顶栏的目标生命值实时减少（结算时确定）；点选、拖放和配发装备都按地上的方格；购买、升级和机变选卡都需要点两次确认；只有一名玩家时除作战外不计时。
 - **画面与声音**：真实 Spine 小人、官方 BGM 与音效、表情（6 套 × 6 个）、作战特效；可选的官方 3D 棋盘（需要从本机客户端提取贴图）。
 - **手机与电脑**：触摸拖拽、长按查看详情，推荐横屏；设置里可以调低画质。
+- **中英双语**：标题页或设置中可切换中文 / English；英文的盟约、干员、技能、特质、策略、装备、敌人和领袖名称来自社区整理并离线打包，不会在游玩时访问第三方网站。
 
 ## 快速开始
 
@@ -185,6 +186,7 @@ RENDER_E2E=1 node --test 'test/render/*.browser.test.js'   # 渲染测试，部�
 ```
 
 - 游戏数据由 `npm run build-data`（`tools/build-data.mjs`）从官方数据表生成，不要手工修改 `data/*.json`。
+- 英文资料由 `npm run build-i18n-en` 生成 `data/i18n-en.json`，以 [Terra Archive](https://terra-archive.net/en/autochess) 为主要来源，并用 [Stronghold Protocol Database](https://ak-spa-database.pages.dev/?tab=Attributes) 的 Attribute / Alliance / Strategy / Item 译文交叉核对；运行游戏不依赖这两个站点。
 - GitHub Actions（[.github/workflows/ci.yml](.github/workflows/ci.yml)）在 Ubuntu 与 Windows、Node 22 / 24 上运行 `npm ci`、`node --test` 和服务器冒烟测试。
 
 ## 项目结构

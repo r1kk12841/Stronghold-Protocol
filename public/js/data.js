@@ -16,6 +16,7 @@
 // `loadData(...)` to await, or the `useData(...)` hook to re-render when files arrive.
 
 import { useEffect, useReducer } from '../vendor/hooks.module.js';
+import { installEnglishCatalog, localizeData } from './i18n.js';
 
 /** Known data files (name → URL basename). Unknown names are allowed too (`/data/<name>.json`). */
 export const DATA_FILES = Object.freeze({
@@ -30,6 +31,7 @@ export const DATA_FILES = Object.freeze({
   choices: 'choices.json',
   config: 'config.json',
   assets: 'assets.json',
+  i18nEn: 'i18n-en.json',
   // Optional art extracted from a local game client (DESIGN §13): { groups: { '<subdir>': { name: { path, w, h } } } }.
   local: 'local-assets.json',
 });
@@ -125,6 +127,7 @@ export function createDataStore(opts = {}) {
           let json;
           try { json = await res.json(); } catch (err) { throw Object.assign(err instanceof Error ? err : new Error(String(err)), { badJson: true }); }
           entry.value = json;
+          if (name === 'i18nEn') installEnglishCatalog(json);
           entry.status = 'ready';
           break;
         } catch (err) {
@@ -165,16 +168,17 @@ export function createDataStore(opts = {}) {
     /** Load several files; resolves when all settled. */
     loadAll: (...names) => Promise.all(names.flat().map(load)),
     /** Raw JSON of a loaded file (null when missing / not loaded yet). */
-    get: (name) => entries.get(name)?.value ?? null,
+    get: (name) => localizeData(name, entries.get(name)?.value ?? null),
     /** 'idle' | 'loading' | 'ready' | 'missing' */
     status: (name) => entries.get(name)?.status ?? 'idle',
     /** Record by id from a loaded file (null when unknown / not loaded). */
     lookup(name, id) {
       if (id == null) return null;
-      return index(name)?.get(String(id)) ?? null;
+      const value = index(name)?.get(String(id)) ?? null;
+      return localizeData(name, value, id);
     },
     /** All records of a loaded file as an array (empty when not loaded). */
-    list: (name) => [...(index(name)?.values() ?? [])],
+    list: (name) => [...(index(name)?.entries() ?? [])].map(([id, value]) => localizeData(name, value, id)),
     /** Drop a cached file and refetch it now (subscribers are notified when it settles). */
     invalidate(name) {
       if (!entries.has(name)) return Promise.resolve(null);

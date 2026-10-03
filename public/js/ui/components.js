@@ -17,6 +17,7 @@ import htm from '../../vendor/htm.module.js';
 import { DIFFICULTY_NAMES, DIFFICULTY_COLORS } from '../../../shared/constants.js';
 import { serverNow } from '../store.js';
 import { data, useData, localAsset } from '../data.js';
+import { localizeChild, localizeProps } from '../i18n.js';
 import { uiUrl } from './assetUrls.js';
 
 /**
@@ -28,7 +29,7 @@ import { uiUrl } from './assetUrls.js';
  */
 export function hFresh(type, props, ...children) {
   if (this && typeof this === 'object') this[0] = 3;
-  return h(type, props, ...children);
+  return h(type, localizeProps(props), ...children.map(localizeChild));
 }
 
 /** Tagged-template JSX replacement bound to Preact's h() (no shared static vnodes, see hFresh). */
