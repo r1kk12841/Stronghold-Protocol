@@ -1,6 +1,8 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { UI_EXTRAS } from './assets/plan.mjs';
+import { RAW, joinUrl, safeName } from './assets/sources.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = async (file) => JSON.parse(await fs.readFile(path.join(root, file), 'utf8'));
@@ -16,6 +18,22 @@ for (const [relative, record] of Object.entries(assets.files || {})) {
 }
 for (const [relative, record] of Object.entries(fonts.files || {})) {
   if (typeof record?.url === 'string' && record.url) sources['/fonts/' + relative.replaceAll('\\', '/')] = record.url;
+}
+
+// UI_EXTRAS are deterministic mirror paths and may be added by a newer upstream
+// manifest before this checkout's optional download ledger has been refreshed.
+// Keep native packages slim by mapping those files directly to the public mirror.
+for (const [group, key, remotePath] of UI_EXTRAS) {
+  sources[`/assets/ui/${group}/${safeName(key)}.png`] = joinUrl(RAW.aa2, remotePath);
+}
+
+// The v0.1.3 联防 track was added upstream after the local asset ledger used
+// by this fork. Its official sound_beta_2 location is stable and public.
+for (const part of ['intro', 'loop']) {
+  sources[`/assets/audio/bgm/m_bat_corrosion_${part}.mp3`] = joinUrl(
+    RAW.aa2voice,
+    `music/act13d5d0/m_bat_corrosion_${part}.mp3`,
+  );
 }
 
 const referenced = new Set();
